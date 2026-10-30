@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameCanvas, LiveCombatTelemetry } from './components/GameCanvas';
+import { ThreeGoreArena } from './components/ThreeGoreArena';
 import { MoralCrossroadsModal } from './components/MoralCrossroadsModal';
 import { VersionManifestModal } from './components/VersionManifestModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ReleaseExportModal } from './components/ReleaseExportModal';
+import { MusicStudioModal } from './components/MusicStudioModal';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { MobileTouchControls } from './components/MobileTouchControls';
 import {
@@ -43,6 +45,9 @@ import {
   Link2,
   Download,
   Gamepad2,
+  Music,
+  Box,
+  Skull,
 } from 'lucide-react';
 
 export type ShellState = 'title' | 'playing' | 'paused' | 'gameover';
@@ -52,7 +57,6 @@ export default function App() {
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('autostart') === '1';
 
-  // Auto-detect mobile/Android touch screen for APK touch controls
   const isTouchDevice =
     typeof window !== 'undefined' &&
     ('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -70,6 +74,7 @@ export default function App() {
   const [isManifestOpen, setIsManifestOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
+  const [isMusicOpen, setIsMusicOpen] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
   const [telemetry, setTelemetry] = useState<LiveCombatTelemetry>({
@@ -139,7 +144,7 @@ export default function App() {
     document.documentElement.lang = isFa ? 'fa' : 'en';
   }, [gameState, ui.dir, isFa]);
 
-  // Keyboard shortcuts for C (Scroll), X (Export/GitHub Release), Escape (Close modal)
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -147,7 +152,8 @@ export default function App() {
         gameState === 'playing' &&
         !isSettingsOpen &&
         !isManifestOpen &&
-        !isExportOpen
+        !isExportOpen &&
+        !isMusicOpen
       ) {
         e.preventDefault();
         setIsCrossroadsOpen((prev) => !prev);
@@ -155,12 +161,15 @@ export default function App() {
         e.code === 'KeyX' &&
         !isSettingsOpen &&
         !isManifestOpen &&
-        !isCrossroadsOpen
+        !isCrossroadsOpen &&
+        !isMusicOpen
       ) {
         e.preventDefault();
         setIsExportOpen((prev) => !prev);
       } else if (e.code === 'Escape') {
-        if (isExportOpen) {
+        if (isMusicOpen) {
+          setIsMusicOpen(false);
+        } else if (isExportOpen) {
           setIsExportOpen(false);
         } else if (isSettingsOpen) {
           setIsSettingsOpen(false);
@@ -173,11 +182,14 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, isCrossroadsOpen, isManifestOpen, isSettingsOpen, isExportOpen]);
+  }, [gameState, isCrossroadsOpen, isManifestOpen, isSettingsOpen, isExportOpen, isMusicOpen]);
 
   const handleStartChronicle = useCallback(
     (startEpochIdx = 0) => {
       soundEngine.playMoralChoiceChime('asha');
+      if (!soundEngine.isMusicPlaying()) {
+        soundEngine.startSymphonicSoundtrack('chahargah_war');
+      }
       setVictorious(false);
       setRunState(createInitialRunState(runState.version, startEpochIdx));
       setGameState('playing');
@@ -198,6 +210,11 @@ export default function App() {
   const handleSelectMoralChoice = useCallback(
     (choice: MoralChoiceOption) => {
       soundEngine.playMoralChoiceChime(choice.path);
+      if (choice.path === 'ahriman') {
+        soundEngine.setSymphonicMode('ahriman_doom');
+      } else {
+        soundEngine.setSymphonicMode('chahargah_war');
+      }
       setRunState((prev) =>
         applyMoralChoice(
           prev,
@@ -240,6 +257,7 @@ export default function App() {
     setIsManifestOpen(false);
     setIsSettingsOpen(false);
     setIsExportOpen(false);
+    setIsMusicOpen(false);
     setRunState((prev) => createInitialRunState(prev.version, prev.epochIndex));
     setGameState('playing');
   }, []);
@@ -258,7 +276,11 @@ export default function App() {
 
   const endingSummary = resolveHistoricalEnding(runState, victorious);
   const isModalOpen =
-    isCrossroadsOpen || isManifestOpen || isSettingsOpen || isExportOpen;
+    isCrossroadsOpen ||
+    isManifestOpen ||
+    isSettingsOpen ||
+    isExportOpen ||
+    isMusicOpen;
 
   // Compute discrete Farr vitality socket states
   const hpPerSocket = Math.max(1, runState.maxHp / runState.farrPips);
@@ -285,23 +307,42 @@ export default function App() {
       dir={ui.dir}
       className="relative w-screen h-screen overflow-hidden bg-[#0E0D0B] select-none"
     >
-      {/* Full-Viewport Interactive Persian Miniature Canvas */}
-      <GameCanvas
-        gameState={gameState}
-        isModalOpen={isModalOpen}
-        runState={runState}
-        settings={settings}
-        onSyncRunState={setRunState}
-        onSyncTelemetry={handleSyncTelemetry}
-        onEpochWaveCleared={handleEpochWaveCleared}
-        onPlayerDefeated={handlePlayerDefeated}
-        onTriggerPause={() =>
-          setGameState((prev) => (prev === 'playing' ? 'paused' : 'playing'))
-        }
-        onToggleMute={handleToggleMute}
-        onOpenSettings={() => setIsSettingsOpen((prev) => !prev)}
-        onQuickRestart={handleQuickRestart}
-      />
+      {/* Full-Viewport 3D Three.js Extreme Gore Arena OR 2D Persian Miniature Canvas */}
+      {settings.renderDimension === '3d_gore' ? (
+        <ThreeGoreArena
+          gameState={gameState}
+          isModalOpen={isModalOpen}
+          runState={runState}
+          settings={settings}
+          onSyncRunState={setRunState}
+          onSyncTelemetry={handleSyncTelemetry}
+          onEpochWaveCleared={handleEpochWaveCleared}
+          onPlayerDefeated={handlePlayerDefeated}
+          onTriggerPause={() =>
+            setGameState((prev) => (prev === 'playing' ? 'paused' : 'playing'))
+          }
+          onToggleMute={handleToggleMute}
+          onOpenSettings={() => setIsSettingsOpen((prev) => !prev)}
+          onQuickRestart={handleQuickRestart}
+        />
+      ) : (
+        <GameCanvas
+          gameState={gameState}
+          isModalOpen={isModalOpen}
+          runState={runState}
+          settings={settings}
+          onSyncRunState={setRunState}
+          onSyncTelemetry={handleSyncTelemetry}
+          onEpochWaveCleared={handleEpochWaveCleared}
+          onPlayerDefeated={handlePlayerDefeated}
+          onTriggerPause={() =>
+            setGameState((prev) => (prev === 'playing' ? 'paused' : 'playing'))
+          }
+          onToggleMute={handleToggleMute}
+          onOpenSettings={() => setIsSettingsOpen((prev) => !prev)}
+          onQuickRestart={handleQuickRestart}
+        />
+      )}
 
       {/* Android APK & Touch Virtual Gamepad */}
       {gameState === 'playing' && !isModalOpen && (
@@ -312,19 +353,32 @@ export default function App() {
       )}
 
       {/* =====================================================================
-          STATE 1: TITLE SCREEN OVERLAY (Persian Miniature Book Cover)
+          STATE 1: TITLE SCREEN OVERLAY (Open-Center Live 3D Gore Showcase + Bottom Command Dock)
           ===================================================================== */}
       {gameState === 'title' && (
-        <div className="fixed inset-0 z-30 flex flex-col items-center justify-between p-5 md:p-8 bg-[#0B0908]/75 pointer-events-auto">
-          {/* Top Miniature Framing Bar */}
-          <div className="w-full max-w-6xl flex flex-wrap items-center justify-between gap-3 border-b border-[#D97706]/35 pb-3">
+        <div className="fixed inset-0 z-30 flex flex-col items-center justify-between p-3 md:p-5 pointer-events-none">
+          {/* Top Bar: Title Identity + Language + Symphonic Music + Settings */}
+          <div className="pointer-events-auto w-full max-w-6xl bg-[#120C0A]/92 border-2 border-[#DC2626]/80 px-4 py-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.9)] flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="font-mono text-xs uppercase tracking-[0.16em] text-[#FDE68A]">
-                {ui.topKicker}
-              </span>
+              <div className="hidden sm:block">
+                <TitleEmblemSvg />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-[#DC2626] text-[#FEF2F2] text-[10px] font-mono font-bold uppercase tracking-wider">
+                    COMPLETE 12-EPOCH EDITION · v5.0
+                  </span>
+                  <span className="font-mono text-[11px] text-[#FDE68A]">
+                    FROM KEYUMARS TO ROSTAM, ESFANDIYAR, SHAGHAD & FERDOWSI’S FINALE
+                  </span>
+                </div>
+                <h1 className="font-display text-lg md:text-2xl font-bold text-[#FDE68A] tracking-wide mt-0.5">
+                  {ui.gameTitle} — <span className="text-[#F87171]">{ui.gameSubtitle}</span>
+                </h1>
+              </div>
             </div>
 
-            {/* Language Selector + PWA/EXE/APK Export + Settings + Version Manifest */}
+            {/* Right Controls: Language + Music Studio + PWA/EXE/APK + Settings */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center bg-[#181310] border border-[#D97706]/50 p-0.5">
                 {(['fa', 'fa_classical', 'en'] as const).map((langKey) => (
@@ -346,6 +400,19 @@ export default function App() {
                 ))}
               </div>
 
+              <button
+                data-open-music="true"
+                onClick={() => {
+                  soundEngine.init();
+                  soundEngine.startSymphonicSoundtrack('chahargah_epic');
+                  setIsMusicOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#991B1B] hover:bg-[#B91C1C] border border-[#FDE68A] text-xs font-bold text-[#FDE68A] cursor-pointer"
+              >
+                <Music className="w-3.5 h-3.5" />
+                <span>{isFa ? '🎵 موسیقی سمفونیک و Lyria 3' : '🎵 Symphonic & Lyria 3'}</span>
+              </button>
+
               <PWAInstallButton
                 language={settings.language}
                 onFallbackOpenExportModal={() => setIsExportOpen(true)}
@@ -358,97 +425,99 @@ export default function App() {
                 <Settings className="w-3.5 h-3.5" />
                 <span>{ui.settingsBtn}</span>
               </button>
-
-              <button
-                onClick={() => setIsManifestOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#181310] border border-[#D97706]/50 text-xs text-[#C8B692] hover:text-[#FDE68A] cursor-pointer"
-              >
-                <Terminal className="w-3.5 h-3.5 text-[#D97706]" />
-                <span>{ui.versionManifestBtn}</span>
-              </button>
             </div>
           </div>
 
-          {/* Centerpiece Persian Miniature Emblem & Primary CTAs */}
-          <div className="parchment-panel miniature-border max-w-3xl w-full px-6 py-6 md:px-10 md:py-8 text-center shadow-[0_24px_80px_rgba(0,0,0,0.95)]">
-            <div className="flex justify-center mb-3">
-              <TitleEmblemSvg />
+          {/* Bottom Docked Command Deck (Leaves Center 75% Completely Unobstructed for 3D Gore Combat) */}
+          <div className="pointer-events-auto w-full max-w-6xl bg-[#120C0A]/94 border-2 border-[#D97706] px-5 py-4 shadow-[0_-12px_48px_rgba(0,0,0,0.95)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* Primary 3D Combat & Gore Triggers */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  data-start="true"
+                  onClick={() => handleStartChronicle(0)}
+                  className="px-4 py-2.5 bg-[#991B1B] hover:bg-[#B91C1C] border-2 border-[#F59E0B] text-[#FDE68A] font-bold text-xs md:text-sm tracking-wide shadow-[0_0_20px_rgba(220,38,38,0.65)] cursor-pointer"
+                >
+                  {ui.startChronicleBtn}
+                </button>
+
+                <button
+                  data-start-hushang="true"
+                  onClick={() => handleStartChronicle(9)}
+                  className="px-4 py-2.5 bg-[#1E3A8A] hover:bg-[#1D4ED8] border-2 border-[#FDE68A] text-[#F5E6C8] font-bold text-xs md:text-sm tracking-wide shadow-[0_0_20px_rgba(30,58,138,0.65)] flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Flame className="w-4 h-4 text-[#FDE68A]" />
+                  <span>{ui.jumpToHushangBtn}</span>
+                </button>
+
+                <button
+                  data-start-finale="true"
+                  onClick={() => handleStartChronicle(11)}
+                  className="px-3.5 py-2.5 bg-[#4C1D95] hover:bg-[#5B21B6] border-2 border-[#FDE68A] text-[#FDE68A] font-bold text-xs md:text-sm tracking-wide flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>
+                    {isFa
+                      ? '🏛️ عصر ۱۲: پایان شاهنامه و کاخ نظم فردوسی (v5.0)'
+                      : '🏛️ Epoch XII: Ferdowsi’s Immortal Finale'}
+                  </span>
+                </button>
+
+                <button
+                  data-gore-burst="true"
+                  onClick={() => {
+                    soundEngine.init();
+                    soundEngine.startSymphonicSoundtrack('chahargah_epic');
+                    window.dispatchEvent(new CustomEvent('shahnameh-trigger-gore-burst'));
+                  }}
+                  className="px-3.5 py-2.5 bg-[#DC2626] hover:bg-[#EF4444] border-2 border-[#FECACA] text-[#FEF2F2] font-bold text-xs md:text-sm flex items-center gap-1.5 shadow-[0_0_24px_rgba(220,38,38,0.85)] cursor-pointer"
+                >
+                  <Skull className="w-4 h-4" />
+                  <span>
+                    {isFa
+                      ? '🩸 ضربه گرز و پاشش خون [F]'
+                      : '🩸 Cleave & Arterial Spray [F]'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Secondary Tools: Music, Story Scroll, EXE/APK Release, Version Manifest */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setIsCrossroadsOpen(true)}
+                  className="px-3 py-2 bg-[#1A120E] hover:bg-[#D97706]/20 border border-[#D97706]/60 text-[#FDE68A] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>{ui.fullStoryReaderBtn}</span>
+                </button>
+
+                <button
+                  data-open-release-center="true"
+                  onClick={() => setIsExportOpen(true)}
+                  className="px-3 py-2 bg-[#065F46] hover:bg-[#047857] border border-[#FDE68A]/75 text-[#FDE68A] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>
+                    {isFa ? 'خروجی EXE / APK [X]' : 'Export EXE / APK [X]'}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setIsManifestOpen(true)}
+                  className="px-2.5 py-2 bg-[#1A120E] hover:bg-[#D97706]/20 border border-[#D97706]/60 text-[#C8B692] text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-[#D97706]" />
+                  <span>v{runState.version}</span>
+                </button>
+              </div>
             </div>
 
-            <h1 className="font-display text-2xl md:text-4xl font-bold text-[#FDE68A] tracking-wide">
-              {ui.gameTitle}
-            </h1>
-            <p className="text-sm md:text-base text-[#E5C158] mt-1 font-semibold">
-              {ui.gameSubtitle}
-            </p>
-
-            <p className="mt-3 text-xs md:text-sm text-[#D6C7B2] max-w-2xl mx-auto leading-relaxed">
-              {ui.heroIntro}
-            </p>
-
-            {/* Primary Start Buttons: Epoch I (Keyumars) & Epoch III (Era of Hushang v1.1) */}
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-              <button
-                data-start="true"
-                onClick={() => handleStartChronicle(0)}
-                className="px-6 py-3 bg-[#991B1B] hover:bg-[#B91C1C] border-2 border-[#F59E0B] text-[#FDE68A] font-bold text-sm tracking-wide shadow-[0_0_25px_rgba(153,27,27,0.65)] cursor-pointer"
-              >
-                {ui.startChronicleBtn}
-              </button>
-
-              <button
-                data-start-hushang="true"
-                onClick={() => handleStartChronicle(2)}
-                className="px-6 py-3 bg-[#1E3A8A] hover:bg-[#1D4ED8] border-2 border-[#FDE68A] text-[#F5E6C8] font-bold text-sm tracking-wide shadow-[0_0_25px_rgba(30,58,138,0.65)] flex items-center gap-2 cursor-pointer"
-              >
-                <Flame className="w-4 h-4 text-[#FDE68A]" />
-                <span>{ui.jumpToHushangBtn}</span>
-              </button>
+            <div className="mt-2.5 pt-2 border-t border-[#D97706]/25 flex flex-wrap items-center justify-between text-[11px] font-mono text-[#D6C7B2]">
+              <span>{ui.controlHintLine}</span>
+              <span className="text-[#FCA5A5] font-bold">
+                GORE: {Math.round(settings.goreIntensityMultiplier * 100)}% · MODE:{' '}
+                {settings.renderDimension === '3d_gore' ? '3D THREE.JS GORE' : '2D MINIATURE'}
+              </span>
             </div>
-
-            {/* Secondary Action Row: Full Shahnameh Scroll, EXE/APK Release Center, Granular Settings */}
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2.5">
-              <button
-                onClick={() => setIsCrossroadsOpen(true)}
-                className="px-3.5 py-1.5 bg-[#120F0D] hover:bg-[#D97706]/20 border border-[#D97706]/60 text-[#FDE68A] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>{ui.fullStoryReaderBtn}</span>
-              </button>
-
-              <button
-                data-open-release-center="true"
-                onClick={() => setIsExportOpen(true)}
-                className="px-3.5 py-1.5 bg-[#065F46]/90 hover:bg-[#047857] border border-[#FDE68A]/75 text-[#FDE68A] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>
-                  {isFa
-                    ? 'خروجی EXE ویندوز / APK اندروید و گیت‌هاب [X]'
-                    : 'Windows .EXE / Android .APK & GitHub Release [X]'}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="px-3.5 py-1.5 bg-[#120F0D] hover:bg-[#D97706]/20 border border-[#D97706]/60 text-[#C8B692] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Settings className="w-3.5 h-3.5 text-[#D97706]" />
-                <span>{ui.settingsBtn}</span>
-              </button>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-[#D97706]/25 text-[11px] font-mono text-[#A89882]">
-              {ui.controlHintLine}
-            </div>
-          </div>
-
-          {/* Bottom Epigraph Footer */}
-          <div className="w-full max-w-6xl flex flex-wrap items-center justify-between text-xs text-[#A89882] border-t border-[#D97706]/25 pt-2.5">
-            <span>نگارگری مکتب تبریز و هرات · آماده خروجی Windows EXE، Android APK و PWA</span>
-            <span className="font-mono text-[#FDE68A]">
-              BUILD v{runState.version} · SCHEMA v{runState.schemaVersion}
-            </span>
           </div>
         </div>
       )}
@@ -531,7 +600,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* TOP-END CLUSTER: Current Epoch Banner, Action Buttons & Epoch Switcher */}
+            {/* TOP-END CLUSTER: Current Epoch Banner, 3D/2D Switch, Music Studio & Epoch Switcher */}
             <div className="pointer-events-auto flex flex-col items-end gap-1.5">
               <div className="bg-[#14100D]/90 border border-[#D97706]/65 px-3.5 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-3">
                 <div>
@@ -560,11 +629,47 @@ export default function App() {
                 {/* Action Triggers */}
                 <div className="flex items-center gap-1.5 border-s border-[#D97706]/30 ps-2.5">
                   <button
+                    onClick={() => {
+                      soundEngine.init();
+                      window.dispatchEvent(new CustomEvent('shahnameh-trigger-gore-burst'));
+                    }}
+                    title={isFa ? 'اجرای فوری قطع عضو و فوران خون [F]' : 'Instant Gore & Dismemberment [F]'}
+                    className="px-2 py-1.5 bg-[#DC2626] hover:bg-[#EF4444] border border-[#FECACA] text-[#FEF2F2] text-[11px] font-mono font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Skull className="w-3.5 h-3.5" />
+                    <span>{isFa ? 'قطع عضو [F]' : 'GORE [F]'}</span>
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setSettings((s) => ({
+                        ...s,
+                        renderDimension:
+                          s.renderDimension === '3d_gore' ? '2d_miniature' : '3d_gore',
+                      }))
+                    }
+                    title={isFa ? 'تغییر حالت 3D Gore / 2D Miniature' : 'Toggle 3D Gore / 2D Mode'}
+                    className="px-2 py-1.5 bg-[#1E3A8A] hover:bg-[#1D4ED8] border border-[#60A5FA] text-[#FDE68A] text-[11px] font-mono font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Box className="w-3.5 h-3.5" />
+                    <span>{settings.renderDimension === '3d_gore' ? '3D GORE' : '2D MINI'}</span>
+                  </button>
+
+                  <button
                     onClick={() => setIsCrossroadsOpen(true)}
                     className="px-2.5 py-1.5 bg-[#991B1B] hover:bg-[#B91C1C] border border-[#F59E0B] text-[#FDE68A] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     <span className="hidden md:inline">{ui.hudDecreeReadyBtn}</span>
+                  </button>
+
+                  <button
+                    data-open-music="true"
+                    onClick={() => setIsMusicOpen(true)}
+                    title={isFa ? 'تالار موسیقی سمفونیک و Lyria 3' : 'Symphonic & Lyria 3 Music'}
+                    className="p-1.5 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#FDE68A]/80 text-[#FDE68A] cursor-pointer"
+                  >
+                    <Music className="w-4 h-4" />
                   </button>
 
                   <button
@@ -583,8 +688,8 @@ export default function App() {
                     onClick={() => setTouchControlsEnabled((prev) => !prev)}
                     title={
                       isFa
-                        ? 'فعال/غیرفعال کردن دسته لمسی اندروید (APK)'
-                        : 'Toggle Android Touch Gamepad'
+                        ? 'فعال/غیرفعال کردن دسته لمسی موبایل و اندروید (APK)'
+                        : 'Toggle Mobile Touch Gamepad'
                     }
                     className={`p-1.5 border cursor-pointer ${
                       touchControlsEnabled
@@ -601,14 +706,6 @@ export default function App() {
                     className="p-1.5 bg-[#0B0908] hover:bg-[#D97706]/25 border border-[#D97706]/45 text-[#FDE68A] cursor-pointer"
                   >
                     <Settings className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setIsManifestOpen(true)}
-                    title={ui.versionManifestBtn}
-                    className="p-1.5 bg-[#0B0908] hover:bg-[#D97706]/25 border border-[#D97706]/45 text-[#D97706] cursor-pointer"
-                  >
-                    <Terminal className="w-4 h-4" />
                   </button>
 
                   <button
@@ -639,24 +736,52 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Epoch Jump Selector Strip (Epochs 1..5) */}
-              <div className="bg-[#14100D]/90 border border-[#D97706]/45 px-2 py-1 flex flex-wrap items-center gap-1 text-[11px]">
+              {/* Epoch Jump Selector Strip (Epochs 1..12) */}
+              <div className="bg-[#14100D]/90 border border-[#D97706]/45 px-2 py-1 flex flex-wrap items-center gap-1 text-[10px]">
                 <span className="text-[#A89882] px-1 font-mono">{ui.hudEpochSelectLabel}</span>
-                {STORY_DATABASE.map((node, idx) => (
-                  <button
-                    key={node.id}
-                    onClick={() => handleJumpToEpoch(idx)}
-                    className={`px-2 py-0.5 font-semibold cursor-pointer border ${
-                      runState.epochIndex === idx
-                        ? 'bg-[#D97706] text-[#0B0908] border-[#FDE68A]'
-                        : 'bg-[#0B0908] text-[#D6C7B2] border-[#D97706]/30 hover:border-[#F59E0B]'
-                    }`}
-                  >
-                    {idx + 1}.{' '}
-                    {PERSIAN_STORY_CHAPTERS.fa[idx]?.rulerName.split(' ')[0] ||
-                      `Epoch ${idx + 1}`}
-                  </button>
-                ))}
+                {STORY_DATABASE.map((node, idx) => {
+                  const faShortNames = [
+                    'کیومرث',
+                    'سیامک',
+                    'هوشنگ',
+                    'طهمورث',
+                    'کاوه',
+                    'فریدون',
+                    'دیو سفید',
+                    'سهراب',
+                    'سیاوش',
+                    'اسفندیار',
+                    'شغاد',
+                    'پایان شاهنامه',
+                  ];
+                  const enShortNames = [
+                    'Keyumars',
+                    'Siamak',
+                    'Hushang',
+                    'Tahmuras',
+                    'Kaveh',
+                    'Fereydun',
+                    'Div-e Sepid',
+                    'Sohrab',
+                    'Siyavash',
+                    'Esfandiyar',
+                    'Shaghad',
+                    'Finale',
+                  ];
+                  return (
+                    <button
+                      key={node.id}
+                      onClick={() => handleJumpToEpoch(idx)}
+                      className={`px-1.5 py-0.5 font-semibold cursor-pointer border ${
+                        runState.epochIndex === idx
+                          ? 'bg-[#D97706] text-[#0B0908] border-[#FDE68A]'
+                          : 'bg-[#0B0908] text-[#D6C7B2] border-[#D97706]/30 hover:border-[#F59E0B]'
+                      }`}
+                    >
+                      {idx + 1}. {isFa ? faShortNames[idx] : enShortNames[idx]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -691,6 +816,17 @@ export default function App() {
                 className="w-full py-2.5 bg-[#1E3A8A] hover:bg-[#1D4ED8] border border-[#F59E0B] text-[#FDE68A] text-xs font-bold cursor-pointer"
               >
                 {ui.resumeBtn}
+              </button>
+              <button
+                onClick={() => {
+                  setGameState('playing');
+                  setIsMusicOpen(true);
+                }}
+                className="w-full py-2.5 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#FDE68A] text-[#FDE68A] text-xs font-bold cursor-pointer"
+              >
+                {isFa
+                  ? 'تالار موسیقی سمفونیک و Lyria 3'
+                  : 'Symphonic & Lyria 3 Music Studio'}
               </button>
               <button
                 onClick={() => {
@@ -795,7 +931,7 @@ export default function App() {
       )}
 
       {/* =====================================================================
-          MODALS: FULL SHAHNAMEH SCROLL, VERSION MANIFEST, SETTINGS, RELEASE EXPORT
+          MODALS: SHAHNAMEH SCROLL, MANIFEST, SETTINGS, EXPORT, MUSIC STUDIO
           ===================================================================== */}
       {isCrossroadsOpen && (
         <MoralCrossroadsModal
@@ -833,6 +969,13 @@ export default function App() {
           touchControlsEnabled={touchControlsEnabled}
           onToggleTouchControls={setTouchControlsEnabled}
           onClose={() => setIsExportOpen(false)}
+        />
+      )}
+
+      {isMusicOpen && (
+        <MusicStudioModal
+          language={settings.language}
+          onClose={() => setIsMusicOpen(false)}
         />
       )}
     </div>

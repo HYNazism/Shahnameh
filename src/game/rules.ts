@@ -244,13 +244,13 @@ export function resolveHistoricalEnding(state: PlayerRunState, victorious: boole
   if (stance === 'RADIANT_ASHA') {
     return {
       id: 'ending-golden-asha',
-      title: 'The Golden Dawn of Asha & Feast of Sadeh',
-      persianTitle: 'طلوع زرین اَشَه، جشن سده و پیروزی درفش کاویانی',
+      title: 'The Immortal Palace of Asha & Ferdowsi’s Eternal Verse',
+      persianTitle: 'طلوع زرین اَشَه و جاودانگی کاخ بلند نظم فردوسی',
       stance: 'RADIANT_ASHA',
       epilogue:
-        'Through justice and the consecrated flame of Sadeh, Div-e Siah was cast down without corrupting the soul of Iranshahr. From the smelted iron came the plowshare, the canal, and three centuries of luminous peace.',
+        'From Keyumars’s Leopard-Throne and Hushang’s Sadeh Fire to Rostam’s Seven Labors, Siyavash’s purity, and Rostam Farrokhzad’s final stand, you upheld justice across all twelve epochs. Though earthly crowns crumble, Hakim Ferdowsi’s immortal Persian verse shines forever.',
       persianEpilogue:
-        'به نیروی داد و فروغ مقدس آتش سده، دیو سیاه و اهریمنان بی‌آنکه روان ایران‌شهر به ستم آلوده شود سرنگون گشتند. از آهن گداخته هوشنگ، گاوآهن و کاریز آب ساخته شد و سیصد سال صلح و روشنایی بر هفت کشور تابید.',
+        'از تخت پلنگینه کیومرث و آتش سده هوشنگ تا هفت‌خوان رستم، پاکی سیاوش، نبرد اسفندیار و ایستادگی رستم فرخزاد، شما آیین داد و اَشَه را پاس داشتید. «پی افکندم از نظم کاخی بلند / که از باد و باران نیابد گزند؛ نمیرم از این پس که من زنده‌ام / که تخم سخن را پراکنده‌ام!»',
       legacyVerdict: `Path of Asha Ascendant (+${Math.round(state.alignment)}) · Iranshahr Stability ${Math.round(state.iranshahrStability)}%`,
       persianVerdict: `راه اَشَه پیروز (+${Math.round(state.alignment)}) · ثبات ایران‌شهر ${Math.round(state.iranshahrStability)}٪ · دیوان دربند: ${state.divsBoundCount}`,
     };
@@ -259,13 +259,13 @@ export function resolveHistoricalEnding(state: PlayerRunState, victorious: boole
   if (stance === 'ABYSSAL_AHRIMAN') {
     return {
       id: 'ending-obsidian-ahriman',
-      title: 'The Obsidian Throne of Blood & Ash',
-      persianTitle: 'تخت سیاه خون و خاکستر مازندران',
+      title: 'The Obsidian Throne of Blood, Iron & Eternal War',
+      persianTitle: 'تخت سیاه خون و آهن — فرمانروایی ابدی زیر درفش خونین',
       stance: 'ABYSSAL_AHRIMAN',
       epilogue:
-        'Div-e Siah lies slaughtered, yet the victor wears the demon’s own horned helm. The forests of Mazandaran burn as eternal tribute, and the seven climes tremble before an iron sovereignty born of Ahriman’s wrath.',
+        'Across twelve epochs—from Div-e Siah and Zahhak to Div-e Sepid, Afrasiab, and Esfandiyar—every foe was crushed in a tempest of blood and iron. The seven climes tremble before an immortal warlord who conquered fate itself by the sword.',
       persianEpilogue:
-        'دیو سیاه در خون خود غلتید، اما فاتح نبرد خود کلاهخود شاخدار دیو را بر سر نهاد! بیشه‌های مازندران در آتش انتقام سوخت و هفت کشور در برابر پادشاهی آهنین و هراس‌انگیز شما به لرزه افتادند.',
+        'از دیو سیاه و ضحاک ماردوش تا دیو سفید، افراسیاب، اسفندیار روئین‌تن و شغاد، همه دشمنان در توفان خون و آهن درهم شکسته شدند! هفت کشور در برابر فرمانروایی آهنین و هراس‌انگیز شما به لرزه افتادند و کارزار شما تا ابد در تاریخ پیچید.',
       legacyVerdict: `Path of Ahriman Dominant (${Math.round(state.alignment)}) · Iranshahr Stability ${Math.round(state.iranshahrStability)}%`,
       persianVerdict: `سلطه راه اهریمن (${Math.round(state.alignment)}) · ثبات ایران‌شهر ${Math.round(state.iranshahrStability)}٪ · دیوان دربند: ${state.divsBoundCount}`,
     };
@@ -273,13 +273,13 @@ export function resolveHistoricalEnding(state: PlayerRunState, victorious: boole
 
   return {
     id: 'ending-twilight-covenant',
-    title: 'The Twilight Covenant of Dual Flame',
-    persianTitle: 'پیمان سپیده‌دم و تراز آتش و آهن',
+    title: 'The Twilight Covenant of Fire, Steel & Immortal Verse',
+    persianTitle: 'پیمان سپیده‌دم، تراز آتش و آهن و یادگار جاودان فردوسی',
     stance: 'TEMPERED_BALANCE',
     epilogue:
-      'Walking the razor edge between Soroush’s mercy and the ruthless steel of war, the throne of Alborz endures. Both light and shadow remain bound beneath the royal seal.',
+      'Walking the razor edge between Soroush’s mercy and the ruthless steel of war across twelve epochs, the memory of Iranshahr endures forever in Ferdowsi’s sixty thousand couplets.',
     persianEpilogue:
-      'با گام برداشتن بر لبه تیغ میان مهر سروش و صلابت آهن، تخت البرز پایدار ماند. روشنایی و سایه هر دو در زیر نگین شاهی به تراز درآمدند.',
+      'با گام برداشتن بر لبه تیغ میان مهر سروش و صلابت گرز و شمشیر در درازنای دوازده عصر، نام ایران‌شهر و پهلوانانش در شصت هزار بیت حکیم توس جاودانه گشت.',
     legacyVerdict: `Balanced Sovereign (${Math.round(state.alignment)}) · Iranshahr Stability ${Math.round(state.iranshahrStability)}%`,
     persianVerdict: `شهریار متعادل (${Math.round(state.alignment)}) · ثبات ایران‌شهر ${Math.round(state.iranshahrStability)}٪ · دیوان دربند: ${state.divsBoundCount}`,
   };

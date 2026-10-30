@@ -146,6 +146,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {ui.qualitySectionTitle}
             </h3>
 
+            {/* Engine Mode: 3D Three.js Extreme Gore vs 2D Miniature */}
+            <div className="grid grid-cols-2 gap-2 pb-1">
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ ...settings, renderDimension: '3d_gore' })}
+                className={`py-2 px-2 text-xs font-bold border cursor-pointer ${
+                  settings.renderDimension === '3d_gore'
+                    ? 'bg-[#991B1B] text-[#FDE68A] border-[#FDE68A]'
+                    : 'bg-[#1C1612] text-[#E7D1A7] border-[#D97706]/40'
+                }`}
+              >
+                {isFa ? 'موتور سه‌بعدی (Three.js 3D + Gore)' : '3D Extreme Gore (Three.js)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ ...settings, renderDimension: '2d_miniature' })}
+                className={`py-2 px-2 text-xs font-bold border cursor-pointer ${
+                  settings.renderDimension === '2d_miniature'
+                    ? 'bg-[#1E3A8A] text-[#FDE68A] border-[#FDE68A]'
+                    : 'bg-[#1C1612] text-[#E7D1A7] border-[#D97706]/40'
+                }`}
+              >
+                {isFa ? 'نگارگری دوبعدی (2D Miniature)' : '2D Persian Miniature'}
+              </button>
+            </div>
+
             {/* Preset Buttons: Low -> Medium -> High -> Ultra (Maximum) */}
             <div className="grid grid-cols-4 gap-1.5">
               {(
@@ -173,6 +199,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             {/* Granular Sliders */}
             <div className="space-y-2 pt-1 text-xs">
+              <div>
+                <div className="flex justify-between text-[#FECACA]">
+                  <label htmlFor="slider-gore">
+                    {isFa
+                      ? 'شدت خونریزی، فواره خون و قطع عضو بزرگسالانه (Adult Gore)'
+                      : 'Adult Gore, Arterial Blood & Brutality Intensity'}
+                  </label>
+                  <span className="font-mono-tabular text-[#F87171]">
+                    {Math.round(settings.goreIntensityMultiplier * 100)}%
+                  </span>
+                </div>
+                <input
+                  id="slider-gore"
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={settings.goreIntensityMultiplier}
+                  onChange={(e) =>
+                    onUpdateSettings({
+                      ...settings,
+                      goreIntensityMultiplier: Number(e.target.value),
+                    })
+                  }
+                  className="w-full accent-[#DC2626] cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-[#FECACA] pb-1">
+                <span>
+                  {isFa
+                    ? 'قطع سر و شاخ دیوان در ضربات سنگین و دیوبند (Dismemberment)'
+                    : '3D Demon Decapitation & Limb Dismemberment'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateSettings({
+                      ...settings,
+                      dismembermentEnabled: !settings.dismembermentEnabled,
+                    })
+                  }
+                  className={`px-3 py-0.5 text-xs font-mono-tabular border cursor-pointer ${
+                    settings.dismembermentEnabled
+                      ? 'bg-[#991B1B] text-[#FDE68A] border-[#F87171]'
+                      : 'bg-[#1C1612] text-[#E7D1A7] border-[#D97706]/40'
+                  }`}
+                >
+                  {settings.dismembermentEnabled
+                    ? isFa
+                      ? 'فعال (بزرگسالان)'
+                      : 'Active (Mature)'
+                    : isFa
+                    ? 'غیرفعال'
+                    : 'Off'}
+                </button>
+              </div>
+
               <div>
                 <div className="flex justify-between text-[#E7D1A7]">
                   <label htmlFor="slider-ornament">

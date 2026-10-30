@@ -1,9 +1,6 @@
-const CACHE_NAME = 'shahnameh-chronicle-cache-v1.1.0';
-const CORE_ASSETS = [
-  '/',
-  '/index.html',
+const CACHE_NAME = 'shahnameh-3d-gore-v3.0.0';
+const STATIC_ASSETS = [
   '/manifest.json',
-  '/version-manifest.json',
   '/icon.svg',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
@@ -12,11 +9,9 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(CORE_ASSETS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => {})
   );
 });
 
@@ -38,26 +33,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-First strategy so code and 3D updates are always visible immediately
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          if (
-            response &&
-            response.status === 200 &&
-            response.type === 'basic'
-          ) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, copy);
-            });
-          }
-          return response;
-        })
-        .catch(() => caches.match('/index.html'));
-    })
+    fetch(event.request)
+      .then((response) => {
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

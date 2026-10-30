@@ -122,6 +122,25 @@ test('migrateSaveStateToVersion and Low-to-Maximum settings presets work across 
   assert.equal(v20State.maxEpochs, 5);
   assert.equal(v20State.epochIndex, 4); // Enters Jamshid & Zahhak
 
+  const { migrated: v25State } = migrateSaveStateToVersion(v20State, '2.5.0');
+  assert.equal(v25State.version, '2.5.0');
+  assert.equal(v25State.maxEpochs, 7);
+  assert.equal(v25State.epochIndex, 6); // Enters Rostam's Haft Khan & Div-e Sepid
+
+  const { migrated: v30State } = migrateSaveStateToVersion(v25State, '3.0.0');
+  assert.equal(v30State.version, '3.0.0');
+  assert.equal(v30State.maxEpochs, 8);
+
+  const { migrated: v40State } = migrateSaveStateToVersion(v30State, '4.0.0');
+  assert.equal(v40State.version, '4.0.0');
+  assert.equal(v40State.maxEpochs, 10);
+
+  const { migrated: v50State } = migrateSaveStateToVersion(v40State, '5.0.0');
+  assert.equal(v50State.version, '5.0.0');
+  assert.equal(v50State.maxEpochs, 12);
+  assert.equal(v50State.epochIndex, 11);
+  assert.equal(STORY_DATABASE.length, 12);
+
   assert.equal(DEFAULT_GAME_SETTINGS.language, 'fa');
   const lowSettings = applyQualityPreset(DEFAULT_GAME_SETTINGS, 'low');
   const ultraSettings = applyQualityPreset(lowSettings, 'ultra');

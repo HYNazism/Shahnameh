@@ -1,0 +1,41 @@
+{
+  "id": "/",
+  "name": "Shahnameh: Crown of Ashes & Light (شاهنامه: تاج خاکستر و نور)",
+  "short_name": "Shahnameh",
+  "description": "Mature 2D Persian Miniature Action-RPG based on Ferdowsi's Shahnameh. Navigate the Path of Asha vs. Path of Ahriman from Keyumars and Hushang to Kaveh's uprising.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0B0908",
+  "theme_color": "#D97706",
+  "lang": "fa",
+  "dir": "rtl",
+  "categories": ["games", "action", "role-playing"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

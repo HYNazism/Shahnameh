@@ -1,0 +1,31 @@
+{
+  "appId": "com.ferdowsi.shahnameh.ashes",
+  "appName": "Shahnameh: Crown of Ashes & Light",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#0B0908",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#0B0908",
+    "buildOptions": {
+      "keystorePath": "android-release-key.keystore",
+      "keystoreAlias": "shahnameh-key"
+    }
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#0B0908",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0B0908",
+      "overlaysWebView": true
+    }
+  }
+}

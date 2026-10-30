@@ -1,0 +1,218 @@
+name: Build & Release Multi-Platform Game (Windows EXE, Android APK, macOS DMG, Linux AppImage, Web PWA)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release Version Tag (e.g. v1.1.0 or v2.0.0)'
+        required: true
+        default: 'v1.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  # ============================================================================
+  # JOB 1: Build Web / PWA Bundle & Unit Tests
+  # ============================================================================
+  build-web-pwa:
+    name: Build Web & PWA Bundle (.zip)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Deterministic Game Rules Unit Tests
+        run: npx tsx --test src/game/rules.test.ts
+
+      - name: Build Production Bundle (Relative Base Path for EXE/APK/Offline)
+        run: npx vite build --base=./
+
+      - name: Package Standalone Offline Web/PWA Archive
+        run: |
+          cd dist
+          zip -r ../Shahnameh-CrownOfAshes-Web-PWA-Offline.zip .
+
+      - name: Upload Web/PWA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-pwa-bundle
+          path: |
+            dist
+            Shahnameh-CrownOfAshes-Web-PWA-Offline.zip
+
+  # ============================================================================
+  # JOB 2: Build Windows (.exe Installer & Portable .exe), macOS (.dmg), Linux (.AppImage)
+  # ============================================================================
+  build-desktop-executables:
+    name: Build Desktop (${{ matrix.os }})
+    needs: build-web-pwa
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform_flag: --win
+            artifact_name: windows-exe-builds
+          - os: ubuntu-latest
+            platform_flag: --linux
+            artifact_name: linux-appimage-builds
+          - os: macos-latest
+            platform_flag: --mac
+            artifact_name: macos-dmg-builds
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Download Compiled Web Bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: web-pwa-bundle
+          path: .
+
+      - name: Install Electron & Electron-Builder
+        run: npm install --no-save electron@^33.2.0 electron-builder@^25.1.8
+
+      - name: Package Native Desktop Executable (${{ matrix.platform_flag }})
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder ${{ matrix.platform_flag }} --config electron-builder.yml --publish never
+
+      - name: Upload Desktop Executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            release-builds/desktop/*.exe
+            release-builds/desktop/*.dmg
+            release-builds/desktop/*.zip
+            release-builds/desktop/*.AppImage
+            release-builds/desktop/*.deb
+
+  # ============================================================================
+  # JOB 3: Build Android APK (.apk) via Capacitor & Gradle
+  # ============================================================================
+  build-android-apk:
+    name: Build Android APK (.apk)
+    needs: build-web-pwa
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Java JDK 21 for Android Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Download Compiled Web Bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: web-pwa-bundle
+          path: .
+
+      - name: Initialize Capacitor Android Project & Sync Web Assets
+        run: |
+          npm install --no-save @capacitor/core@^6.1.2 @capacitor/cli@^6.1.2 @capacitor/android@^6.1.2
+          npx cap add android
+          npx cap sync android
+
+      - name: Configure Landscape Fullscreen in AndroidManifest.xml
+        run: |
+          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:screenOrientation="sensorLandscape" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"/g' android/app/src/main/AndroidManifest.xml
+
+      - name: Build Installable Android APK via Gradle
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../Shahnameh-CrownOfAshes-Android-Universal.apk
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-build
+          path: Shahnameh-CrownOfAshes-Android-Universal.apk
+
+  # ============================================================================
+  # JOB 4: Publish GitHub Release with All Formats (.exe, .apk, .dmg, .AppImage, .zip)
+  # ============================================================================
+  publish-github-release:
+    name: Publish Multi-Platform GitHub Release
+    needs: [build-web-pwa, build-desktop-executables, build-android-apk]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download All Built Platform Packages
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Determine Release Tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.release_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release & Attach EXE, APK, DMG, AppImage & ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.VERSION }}
+          name: "Shahnameh: Crown of Ashes & Light ${{ steps.tag.outputs.VERSION }} (Windows .EXE / Android .APK / Web)"
+          body: |
+            ## شاهنامه: تاج خاکستر و نور — انتشار چندپلتفرمی (${{ steps.tag.outputs.VERSION }})
+            ### Shahnameh: Crown of Ashes & Light — Multi-Platform Release
+
+            #### پکیج‌های قابل دانلود (Included Executables & Packages):
+            - **Windows (`.exe`)**:
+              - `Shahnameh-CrownOfAshes-*-Windows-x64.exe` (نصب‌کننده رسمی ویندوز - NSIS Installer)
+              - `Shahnameh-CrownOfAshes-*-Portable-x64.exe` (نسخه پرتابل بدون نیاز به نصب - کلیک و اجرا)
+            - **Android (`.apk`)**:
+              - `Shahnameh-CrownOfAshes-Android-Universal.apk` (قابل نصب روی تمام گوشی‌ها و تبلت‌های اندروید به همراه دسته لمسی مجازی)
+            - **macOS (`.dmg`) & Linux (`.AppImage` / `.deb`)**:
+              - پکیج‌های اجرایی دسکتاپ مک و لینوکس
+            - **Standalone Offline Web / PWA (`.zip`)**:
+              - `Shahnameh-CrownOfAshes-Web-PWA-Offline.zip`
+          files: |
+            release-artifacts/windows-exe-builds/release-builds/desktop/*.exe
+            release-artifacts/android-apk-build/*.apk
+            release-artifacts/linux-appimage-builds/release-builds/desktop/*.AppImage
+            release-artifacts/linux-appimage-builds/release-builds/desktop/*.deb
+            release-artifacts/macos-dmg-builds/release-builds/desktop/*.dmg
+            release-artifacts/web-pwa-bundle/Shahnameh-CrownOfAshes-Web-PWA-Offline.zip
+          draft: false
+          prerelease: false

@@ -1,0 +1,6 @@
+{
+  "name": "Shahnameh: Crown of Ashes & Light",
+  "description": "A mature dark-epic 2D action-chronicle game inspired by Ferdowsi's Shahnameh in Tabriz and Herat Persian miniature style, featuring the Path of Asha vs. Path of Ahriman moral alignment system and modular versioning architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,44 @@
+appId: com.ferdowsi.shahnameh.ashes
+productName: Shahnameh Crown of Ashes and Light
+copyright: Copyright © 2026 Shahnameh Interactive Chronicle
+directories:
+  output: release-builds/desktop
+  buildResources: public
+files:
+  - dist/**/*
+  - electron/**/*
+  - public/pwa-512x512.png
+  - public/version-manifest.json
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: public/pwa-512x512.png
+  artifactName: "Shahnameh-CrownOfAshes-${version}-Windows-${arch}.${ext}"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "Shahnameh - Crown of Ashes & Light"
+portable:
+  artifactName: "Shahnameh-CrownOfAshes-${version}-Portable-x64.exe"
+mac:
+  target:
+    - dmg
+    - zip
+  icon: public/pwa-512x512.png
+  category: public.app-category.role-playing-games
+  artifactName: "Shahnameh-CrownOfAshes-${version}-macOS.${ext}"
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: public/pwa-512x512.png
+  category: Game
+  artifactName: "Shahnameh-CrownOfAshes-${version}-Linux.${ext}"

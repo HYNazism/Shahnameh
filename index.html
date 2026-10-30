@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fa" dir="rtl" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0B0908" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Shahnameh" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <title>Shahnameh: Crown of Ashes &amp; Light</title>
+    <meta name="description" content="A mature dark-epic 2D action-chronicle game inspired by Ferdowsi's Shahnameh in Tabriz and Herat Persian miniature style, featuring the Path of Asha vs. Path of Ahriman moral alignment system and modular versioning architecture." />
+    <meta property="og:title" content="Shahnameh: Crown of Ashes &amp; Light" />
+    <meta property="og:description" content="A mature dark-epic 2D action-chronicle game inspired by Ferdowsi's Shahnameh in Tabriz and Herat Persian miniature style." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body data-state="title" class="bg-[#0B0908] text-[#F5E6C8] antialiased selection:bg-[#991B1B] selection:text-[#F5E6C8] overflow-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

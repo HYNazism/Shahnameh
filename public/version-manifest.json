@@ -1,0 +1,59 @@
+{
+  "projectId": "shahnameh-crown-of-ashes-and-light",
+  "title": "شاهنامه: تاج خاکستر و نور (Shahnameh: Crown of Ashes & Light)",
+  "activeVersion": "1.1.0",
+  "currentSchemaVersion": 2,
+  "defaultLanguage": "fa",
+  "supportedLanguages": ["fa", "fa_classical", "en"],
+  "releases": [
+    {
+      "version": "1.0.0",
+      "codename": "بنیاد پادشاهی کیومرث و رزم سیامک (Era of Keyumars & Siamak)",
+      "schemaVersion": 1,
+      "compatibleFrom": ["1.0.0"],
+      "chaptersIncluded": ["epoch-1-keyumars", "epoch-2-siamak", "epoch-3-hushang"]
+    },
+    {
+      "version": "1.1.0",
+      "codename": "عصر هوشنگ، پیدایش آتش سده و مکانیک نوین جنگ با دیوان (Era of Hushang & Div-Warfare)",
+      "schemaVersion": 2,
+      "compatibleFrom": ["1.0.0", "1.1.0"],
+      "newMechanics": [
+        "Sang-e Sadeh [Key Q]: Flint-Fire Parry, Projectile Deflection & Brazier Ignition",
+        "Div-Band Stagger & Finisher [Key F]: Talisman Posture Shatter & Demon-Binding",
+        "Interactive Sadeh Fire Braziers (0/4): Forge-Tempering Weapon Damage Bonus"
+      ],
+      "chaptersIncluded": [
+        "epoch-1-keyumars",
+        "epoch-2-siamak",
+        "epoch-3-hushang",
+        "epoch-4-tahmuras"
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "codename": "عصر طهمورث دیوبند و راز سی خط (Era of Tahmuras the Demon-Binder)",
+      "schemaVersion": 3,
+      "compatibleFrom": ["1.0.0", "1.1.0", "1.2.0"],
+      "chaptersIncluded": [
+        "epoch-1-keyumars",
+        "epoch-2-siamak",
+        "epoch-3-hushang",
+        "epoch-4-tahmuras"
+      ]
+    },
+    {
+      "version": "2.0.0",
+      "codename": "عصر جمشید، ضحاک ماردوش و قیام کاوه آهنگر (Jamshid, Zahhak & Kaveh Uprising)",
+      "schemaVersion": 4,
+      "compatibleFrom": ["1.0.0", "1.1.0", "1.2.0", "2.0.0"],
+      "chaptersIncluded": [
+        "epoch-1-keyumars",
+        "epoch-2-siamak",
+        "epoch-3-hushang",
+        "epoch-4-tahmuras",
+        "epoch-5-jamshid-zahhak"
+      ]
+    }
+  ]
+}

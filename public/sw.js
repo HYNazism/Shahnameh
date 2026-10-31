@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shahnameh-3d-gore-v3.0.0';
+const CACHE_NAME = 'shahnameh-3d-release-v5.0.0';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icon.svg',

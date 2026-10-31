@@ -2347,10 +2347,32 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       renderer.compile(scene, camera);
     }
 
-    const clock = new THREE.Clock();
+    let lastFrameTimeMs = performance.now();
+    const startTimeMs = lastFrameTimeMs;
     let frameId = 0;
     let isDisposed = false;
     let attractStrikeCooldown = 0.45;
+    let currentGraphicsQualityTracked = settingsRef.current.graphicsQuality;
+
+    const applyGraphicsQualityPreset = (quality: string) => {
+      if (isSoftwareGl) return;
+      const dpr = window.devicePixelRatio || 1;
+      const isSmallScreen = (container.clientWidth || window.innerWidth) < 768;
+      if (quality === 'low') {
+        renderer.setPixelRatio(Math.min(dpr, 0.85));
+        keyLight.castShadow = false;
+      } else if (quality === 'medium') {
+        renderer.setPixelRatio(Math.min(dpr, isSmallScreen ? 1.1 : 1.25));
+        keyLight.castShadow = true;
+      } else if (quality === 'high') {
+        renderer.setPixelRatio(Math.min(dpr, isSmallScreen ? 1.35 : 1.65));
+        keyLight.castShadow = true;
+      } else {
+        renderer.setPixelRatio(Math.min(dpr, isSmallScreen ? 1.5 : 2.0));
+        keyLight.castShadow = true;
+      }
+    };
+    applyGraphicsQualityPreset(currentGraphicsQualityTracked);
 
     function afterDraw(cb: () => void) {
       const gl = renderer.getContext() as WebGL2RenderingContext;
@@ -2375,9 +2397,16 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
 
     function tick() {
       if (isDisposed) return;
-      const rawDt = clock.getDelta();
+      const nowMs = performance.now();
+      const rawDt = Math.max(0.001, (nowMs - lastFrameTimeMs) / 1000);
+      lastFrameTimeMs = nowMs;
       const dt = clampDt(rawDt);
-      const elapsed = clock.getElapsedTime();
+      const elapsed = (nowMs - startTimeMs) / 1000;
+
+      if (currentGraphicsQualityTracked !== settingsRef.current.graphicsQuality) {
+        currentGraphicsQualityTracked = settingsRef.current.graphicsQuality;
+        applyGraphicsQualityPreset(currentGraphicsQualityTracked);
+      }
 
       if (currentEpochTracked !== runStateRef.current.epochIndex) {
         currentEpochTracked = runStateRef.current.epochIndex;
@@ -2801,10 +2830,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       const h = container.clientHeight || window.innerHeight;
       camera.aspect = Math.max(0.25, w / Math.max(1, h));
       camera.updateProjectionMatrix();
-      if (!isSoftwareGl) {
-        const isSmallScreen = w < 768;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmallScreen ? 1.5 : 2));
-      }
+      applyGraphicsQualityPreset(settingsRef.current.graphicsQuality);
       renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);

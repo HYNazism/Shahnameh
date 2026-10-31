@@ -2,11 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { GameCanvas, LiveCombatTelemetry } from './components/GameCanvas';
 import { ThreeGoreArena } from './components/ThreeGoreArena';
 import { MoralCrossroadsModal } from './components/MoralCrossroadsModal';
-import { VersionManifestModal } from './components/VersionManifestModal';
 import { SettingsModal } from './components/SettingsModal';
-import { ReleaseExportModal } from './components/ReleaseExportModal';
-import { MusicStudioModal } from './components/MusicStudioModal';
-import { PWAInstallButton } from './components/PWAInstallButton';
 import { MobileTouchControls } from './components/MobileTouchControls';
 import {
   TitleEmblemSvg,
@@ -23,9 +19,7 @@ import {
 } from './data/i18nAndSettings';
 import {
   applyMoralChoice,
-  calculateAlignmentStance,
   createInitialRunState,
-  migrateSaveStateToVersion,
   PlayerRunState,
   resolveHistoricalEnding,
 } from './game/rules';
@@ -33,33 +27,34 @@ import { soundEngine } from './game/soundEngine';
 import {
   BookOpen,
   Flame,
-  Shield,
-  Volume2,
-  VolumeX,
   Pause,
   Play,
   RotateCcw,
-  Terminal,
   Settings,
+  Volume2,
+  VolumeX,
   Zap,
   Link2,
-  Download,
-  Gamepad2,
-  Music,
-  Box,
   Skull,
+  Swords,
 } from 'lucide-react';
 
 export type ShellState = 'title' | 'playing' | 'paused' | 'gameover';
+
+function toFaDigits(val: number | string): string {
+  return String(val).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+}
 
 export default function App() {
   const isAutoStart =
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('autostart') === '1';
 
-  const isTouchDevice =
+  const detectCompactOrTouchDevice = () =>
     typeof window !== 'undefined' &&
-    ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    ('ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.innerWidth < 768);
 
   const [gameState, setGameState] = useState<ShellState>(isAutoStart ? 'playing' : 'title');
   const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
@@ -67,15 +62,31 @@ export default function App() {
     createInitialRunState(SHAHNAMEH_BUILD_MANIFEST.activeVersion, 0)
   );
   const [victorious, setVictorious] = useState<boolean>(false);
-  const [touchControlsEnabled, setTouchControlsEnabled] = useState<boolean>(isTouchDevice);
-
-  // Modals
+  const [touchControlsEnabled, setTouchControlsEnabled] = useState<boolean>(
+    detectCompactOrTouchDevice
+  );
   const [isCrossroadsOpen, setIsCrossroadsOpen] = useState<boolean>(false);
-  const [isManifestOpen, setIsManifestOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
-  const [isMusicOpen, setIsMusicOpen] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+
+  // Sync audio volumes with settings
+  useEffect(() => {
+    soundEngine.setVolumes(
+      settings.masterVolume,
+      settings.sfxVolume,
+      settings.musicChimeVolume
+    );
+  }, [settings.masterVolume, settings.sfxVolume, settings.musicChimeVolume]);
+
+  // Automatically adapt touch controls & layout when device viewport resizes or rotates
+  useEffect(() => {
+    const handleViewportAdapt = () => {
+      const isCompact = window.innerWidth < 768 || navigator.maxTouchPoints > 0;
+      setTouchControlsEnabled(isCompact);
+    };
+    window.addEventListener('resize', handleViewportAdapt);
+    return () => window.removeEventListener('resize', handleViewportAdapt);
+  }, []);
 
   const [telemetry, setTelemetry] = useState<LiveCombatTelemetry>({
     hp: 100,
@@ -92,7 +103,7 @@ export default function App() {
     braziersLit: 0,
     flintReady: true,
     isDuelBossFight: false,
-    heroTitle: 'کیومرث (پلنگینه‌پوش)',
+    heroTitle: 'کیومرث پلنگینه‌پوش',
   });
 
   const handleSyncTelemetry = useCallback((next: LiveCombatTelemetry) => {
@@ -103,6 +114,7 @@ export default function App() {
         prev.mythicEnergy === next.mythicEnergy &&
         prev.waveProgress === next.waveProgress &&
         prev.bossActive === next.bossActive &&
+        prev.bossName === next.bossName &&
         prev.bossHp === next.bossHp &&
         prev.activeEnemyCount === next.activeEnemyCount &&
         prev.boundEnemiesCount === next.boundEnemiesCount &&
@@ -119,7 +131,8 @@ export default function App() {
 
   const ui = UI_DICTIONARY[settings.language];
   const isFa = settings.language !== 'en';
-  const stance = calculateAlignmentStance(runState.alignment);
+  const isEvilFaction = runState.alignment < 0;
+
   const currentCrossroads =
     STORY_DATABASE[Math.min(runState.epochIndex, STORY_DATABASE.length - 1)] ||
     STORY_DATABASE[0];
@@ -132,15 +145,6 @@ export default function App() {
       Math.min(runState.epochIndex, PERSIAN_STORY_CHAPTERS.fa.length - 1)
     ];
 
-  // Sync audio volumes with settings
-  useEffect(() => {
-    soundEngine.setVolumes(
-      settings.masterVolume,
-      settings.sfxVolume,
-      settings.musicChimeVolume
-    );
-  }, [settings.masterVolume, settings.sfxVolume, settings.musicChimeVolume]);
-
   // Reflect shell state and RTL/LTR direction on document
   useEffect(() => {
     document.body.dataset.state = gameState;
@@ -151,54 +155,46 @@ export default function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.code === 'KeyC' &&
-        gameState === 'playing' &&
-        !isSettingsOpen &&
-        !isManifestOpen &&
-        !isExportOpen &&
-        !isMusicOpen
-      ) {
+      if (e.code === 'KeyC' && gameState === 'playing') {
         e.preventDefault();
         setIsCrossroadsOpen((prev) => !prev);
-      } else if (
-        e.code === 'KeyX' &&
-        !isSettingsOpen &&
-        !isManifestOpen &&
-        !isCrossroadsOpen &&
-        !isMusicOpen
-      ) {
-        e.preventDefault();
-        setIsExportOpen((prev) => !prev);
-      } else if (e.code === 'Escape') {
-        if (isMusicOpen) {
-          setIsMusicOpen(false);
-        } else if (isExportOpen) {
-          setIsExportOpen(false);
-        } else if (isSettingsOpen) {
-          setIsSettingsOpen(false);
-        } else if (isCrossroadsOpen) {
-          setIsCrossroadsOpen(false);
-        } else if (isManifestOpen) {
-          setIsManifestOpen(false);
-        }
+      } else if (e.code === 'Escape' && isCrossroadsOpen) {
+        setIsCrossroadsOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, isCrossroadsOpen, isManifestOpen, isSettingsOpen, isExportOpen, isMusicOpen]);
+  }, [gameState, isCrossroadsOpen]);
+
+  const handleSelectFactionAlignment = useCallback((path: 'asha' | 'ahriman') => {
+    soundEngine.init();
+    soundEngine.playMoralChoiceChime(path);
+    setRunState((prev) => ({
+      ...prev,
+      alignment: path === 'ahriman' ? -45 : 45,
+      iranshahrStability: path === 'ahriman' ? 35 : 80,
+      attackMultiplier: path === 'ahriman' ? 1.28 : 1.12,
+      sacredFireGuard: path === 'asha' ? 0.25 : 0.1,
+    }));
+  }, []);
 
   const handleStartChronicle = useCallback(
-    (startEpochIdx = 0) => {
-      soundEngine.playMoralChoiceChime('asha');
-      if (!soundEngine.isMusicPlaying()) {
-        soundEngine.startSymphonicSoundtrack('chahargah_war');
-      }
+    (startEpochIdx = 0, chosenPath?: 'asha' | 'ahriman') => {
+      const targetPath = chosenPath || (runState.alignment < 0 ? 'ahriman' : 'asha');
+      soundEngine.init();
+      soundEngine.playMoralChoiceChime(targetPath);
       setVictorious(false);
-      setRunState(createInitialRunState(runState.version, startEpochIdx));
+      const initial = createInitialRunState(runState.version, startEpochIdx);
+      setRunState({
+        ...initial,
+        alignment: targetPath === 'ahriman' ? -45 : 45,
+        iranshahrStability: targetPath === 'ahriman' ? 35 : 80,
+        attackMultiplier: targetPath === 'ahriman' ? 1.28 : 1.12,
+        sacredFireGuard: targetPath === 'asha' ? 0.25 : 0.1,
+      });
       setGameState('playing');
     },
-    [runState.version]
+    [runState.version, runState.alignment]
   );
 
   const handleJumpToEpoch = useCallback((targetEpochIdx: number) => {
@@ -215,22 +211,24 @@ export default function App() {
     (choice: MoralChoiceOption) => {
       soundEngine.init();
       soundEngine.playMoralChoiceChime(choice.path);
-      if (choice.path === 'ahriman') {
-        soundEngine.setSymphonicMode('ahriman_doom');
-      } else {
-        soundEngine.setSymphonicMode('chahargah_war');
-      }
-      setRunState((prev) =>
-        applyMoralChoice(
+      setRunState((prev) => {
+        const next = applyMoralChoice(
           prev,
           currentCrossroads.id,
           currentCrossroads.epochLabel,
           choice
-        )
-      );
+        );
+        // Ensure alignment strictly reflects the chosen Good (asha) or Evil (ahriman) path
+        return {
+          ...next,
+          alignment:
+            choice.path === 'ahriman'
+              ? Math.min(-35, next.alignment)
+              : Math.max(35, next.alignment),
+        };
+      });
       setIsCrossroadsOpen(false);
       setGameState('playing');
-      // Transition directly from the Moral Crossroads screen into the 1v1 Good vs. Evil Boss Duel!
       setTimeout(() => {
         window.dispatchEvent(
           new CustomEvent('shahnameh-enter-duel-boss-fight', {
@@ -268,11 +266,14 @@ export default function App() {
   const handleQuickRestart = useCallback(() => {
     setVictorious(false);
     setIsCrossroadsOpen(false);
-    setIsManifestOpen(false);
     setIsSettingsOpen(false);
-    setIsExportOpen(false);
-    setIsMusicOpen(false);
-    setRunState((prev) => createInitialRunState(prev.version, prev.epochIndex));
+    setRunState((prev) => {
+      const reset = createInitialRunState(prev.version, prev.epochIndex);
+      return {
+        ...reset,
+        alignment: prev.alignment,
+      };
+    });
     setGameState('playing');
   }, []);
 
@@ -281,20 +282,8 @@ export default function App() {
     setIsMuted(muted);
   }, []);
 
-  const handleApplyVersionUpdate = useCallback((targetVersion: string) => {
-    setRunState((prev) => {
-      const { migrated } = migrateSaveStateToVersion(prev, targetVersion);
-      return migrated;
-    });
-  }, []);
-
   const endingSummary = resolveHistoricalEnding(runState, victorious);
-  const isModalOpen =
-    isCrossroadsOpen ||
-    isManifestOpen ||
-    isSettingsOpen ||
-    isExportOpen ||
-    isMusicOpen;
+  const isModalOpen = isCrossroadsOpen || isSettingsOpen;
 
   // Compute discrete Farr vitality socket states
   const hpPerSocket = Math.max(1, runState.maxHp / runState.farrPips);
@@ -309,19 +298,12 @@ export default function App() {
     }
   );
 
-  const stanceLabel =
-    stance === 'RADIANT_ASHA'
-      ? ui.stanceAsha
-      : stance === 'ABYSSAL_AHRIMAN'
-      ? ui.stanceAhriman
-      : ui.stanceBalance;
-
   return (
     <div
       dir={ui.dir}
-      className="relative w-screen h-screen overflow-hidden bg-[#0E0D0B] select-none"
+      className="relative w-screen h-[100dvh] overflow-hidden bg-[#070504] select-none"
     >
-      {/* Full-Viewport 3D Three.js Extreme Gore Arena OR 2D Persian Miniature Canvas */}
+      {/* Full-Viewport 3D Grimdark Arena */}
       {settings.renderDimension === '3d_gore' ? (
         <ThreeGoreArena
           gameState={gameState}
@@ -359,7 +341,7 @@ export default function App() {
         />
       )}
 
-      {/* Android APK & Touch Virtual Gamepad */}
+      {/* Touch Virtual Gamepad (Auto-activated on Mobile/Tablet) */}
       {gameState === 'playing' && !isModalOpen && (
         <MobileTouchControls
           language={settings.language}
@@ -368,74 +350,46 @@ export default function App() {
       )}
 
       {/* =====================================================================
-          STATE 1: TITLE SCREEN OVERLAY (Open-Center Live 3D Gore Showcase + Bottom Command Dock)
+          STATE 1: TITLE SCREEN OVERLAY (Dark-Epic Persian Aesthetics, Pure Game UI)
           ===================================================================== */}
       {gameState === 'title' && (
-        <div className="fixed inset-0 z-30 flex flex-col items-center justify-between p-3 md:p-5 pointer-events-none">
-          {/* Top Bar: Title Identity + Language + Symphonic Music + Settings */}
-          <div className="pointer-events-auto w-full max-w-6xl bg-[#120C0A]/92 border-2 border-[#DC2626]/80 px-4 py-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.9)] flex flex-wrap items-center justify-between gap-3">
+        <div className="fixed inset-0 z-30 flex flex-col items-center justify-between p-2.5 sm:p-4 md:p-6 pointer-events-none">
+          {/* Top Bar: Title Identity + Language Switch + Settings */}
+          <div className="pointer-events-auto w-full max-w-5xl bg-[#0D0907]/94 border border-[#78350F] px-3.5 sm:px-5 py-2.5 shadow-[0_14px_40px_rgba(0,0,0,0.95)] flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="hidden sm:block">
                 <TitleEmblemSvg />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-[#DC2626] text-[#FEF2F2] text-[10px] font-mono font-bold uppercase tracking-wider">
-                    COMPLETE 12-EPOCH EDITION · v5.0
-                  </span>
-                  <span className="font-mono text-[11px] text-[#FDE68A]">
-                    FROM KEYUMARS TO ROSTAM, ESFANDIYAR, SHAGHAD & FERDOWSI’S FINALE
-                  </span>
-                </div>
-                <h1 className="font-display text-lg md:text-2xl font-bold text-[#FDE68A] tracking-wide mt-0.5">
-                  {ui.gameTitle} — <span className="text-[#F87171]">{ui.gameSubtitle}</span>
-                </h1>
-              </div>
+              <h1 className="font-display text-base sm:text-xl md:text-2xl font-bold text-[#FDE68A] tracking-wide">
+                {ui.gameTitle} — <span className="text-[#DC2626]">{ui.gameSubtitle}</span>
+              </h1>
             </div>
 
-            {/* Right Controls: Language + Music Studio + PWA/EXE/APK + Settings */}
+            {/* Language Selector + Graphics/Audio Settings */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center bg-[#181310] border border-[#D97706]/50 p-0.5">
+              <div className="flex items-center bg-[#140E0B] border border-[#78350F] p-0.5">
                 {(['fa', 'fa_classical', 'en'] as const).map((langKey) => (
                   <button
                     key={langKey}
                     onClick={() => setSettings((s) => ({ ...s, language: langKey }))}
                     className={`px-2.5 py-1 text-xs font-semibold cursor-pointer ${
                       settings.language === langKey
-                        ? 'bg-[#D97706] text-[#0B0908]'
+                        ? 'bg-[#B45309] text-[#090706]'
                         : 'text-[#C8B692] hover:text-[#FDE68A]'
                     }`}
                   >
                     {langKey === 'fa'
-                      ? 'فارسی سلیس'
+                      ? 'فارسی'
                       : langKey === 'fa_classical'
                       ? 'پارسی کهن'
-                      : 'EN'}
+                      : 'English'}
                   </button>
                 ))}
               </div>
 
               <button
-                data-open-music="true"
-                onClick={() => {
-                  soundEngine.init();
-                  soundEngine.startSymphonicSoundtrack('chahargah_epic');
-                  setIsMusicOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#991B1B] hover:bg-[#B91C1C] border border-[#FDE68A] text-xs font-bold text-[#FDE68A] cursor-pointer"
-              >
-                <Music className="w-3.5 h-3.5" />
-                <span>{isFa ? '🎵 موسیقی سمفونیک و Lyria 3' : '🎵 Symphonic & Lyria 3'}</span>
-              </button>
-
-              <PWAInstallButton
-                language={settings.language}
-                onFallbackOpenExportModal={() => setIsExportOpen(true)}
-              />
-
-              <button
                 onClick={() => setIsSettingsOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#181310] border border-[#D97706]/50 text-xs text-[#FDE68A] hover:bg-[#D97706]/20 cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#140E0B] hover:bg-[#78350F]/30 border border-[#78350F] text-xs font-bold text-[#FDE68A] cursor-pointer"
               >
                 <Settings className="w-3.5 h-3.5" />
                 <span>{ui.settingsBtn}</span>
@@ -443,216 +397,250 @@ export default function App() {
             </div>
           </div>
 
-          {/* Bottom Docked Command Deck (Leaves Center 75% Completely Unobstructed for 3D Gore Combat) */}
-          <div className="pointer-events-auto w-full max-w-6xl bg-[#120C0A]/94 border-2 border-[#D97706] px-5 py-4 shadow-[0_-12px_48px_rgba(0,0,0,0.95)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              {/* Primary 3D Combat & Gore Triggers */}
+          {/* Bottom Docked Command Deck: Choose Good vs. Evil Faction & Enter Battle */}
+          <div className="pointer-events-auto w-full max-w-5xl bg-[#0D0907]/95 border border-[#92400E] px-4 sm:px-6 py-3.5 sm:py-4 shadow-[0_-16px_48px_rgba(0,0,0,0.96)] flex flex-col gap-3">
+            {/* Row 1: Faction Choice (Good Asha vs. Evil Ahriman) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#78350F]/45">
+              <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#E7D8C1]">
+                <Swords className="w-4 h-4 text-[#D97706]" />
+                <span>
+                  {isFa
+                    ? isEvilFaction
+                      ? 'جبهه انتخاب‌شده: راه شر (اهریمن) — دشمنان شما: سپاهیان و پهلوانان خیر ایران‌شهر'
+                      : 'جبهه انتخاب‌شده: راه خیر (اشه) — دشمنان شما: سپاه دیوان و اهریمن'
+                    : isEvilFaction
+                    ? 'Selected Faction: Path of Evil (Ahriman) — Enemies: Forces & Heroes of Good'
+                    : 'Selected Faction: Path of Good (Asha) — Enemies: Forces & Demons of Evil'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  data-testid="select-faction-asha"
+                  onClick={() => handleSelectFactionAlignment('asha')}
+                  className={`px-3 py-1.5 text-xs font-bold border cursor-pointer ${
+                    !isEvilFaction
+                      ? 'bg-[#1E3A8A] border-[#FDE68A] text-[#FDE68A] shadow-[0_0_16px_rgba(30,58,138,0.8)]'
+                      : 'bg-[#140E0B] border-[#78350F]/60 text-[#A89882] hover:text-[#FDE68A]'
+                  }`}
+                >
+                  {isFa ? '🛡️ جبهه خیر (فروغ اشه)' : '🛡️ Path of Good (Asha)'}
+                </button>
+
+                <button
+                  data-testid="select-faction-ahriman"
+                  onClick={() => handleSelectFactionAlignment('ahriman')}
+                  className={`px-3 py-1.5 text-xs font-bold border cursor-pointer ${
+                    isEvilFaction
+                      ? 'bg-[#7F1D1D] border-[#FCA5A5] text-[#FEF2F2] shadow-[0_0_16px_rgba(185,28,28,0.85)]'
+                      : 'bg-[#140E0B] border-[#78350F]/60 text-[#A89882] hover:text-[#FCA5A5]'
+                  }`}
+                >
+                  {isFa ? '🔥 جبهه شر (خشم اهریمن)' : '🔥 Path of Evil (Ahriman)'}
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: Battle Launch & Story Scroll */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   data-start="true"
                   onClick={() => handleStartChronicle(0)}
-                  className="px-4 py-2.5 bg-[#991B1B] hover:bg-[#B91C1C] border-2 border-[#F59E0B] text-[#FDE68A] font-bold text-xs md:text-sm tracking-wide shadow-[0_0_20px_rgba(220,38,38,0.65)] cursor-pointer"
+                  className="px-4 py-2 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#F59E0B] text-[#FDE68A] font-bold text-xs sm:text-sm tracking-wide cursor-pointer"
                 >
                   {ui.startChronicleBtn}
                 </button>
 
                 <button
                   data-start-hushang="true"
-                  onClick={() => handleStartChronicle(9)}
-                  className="px-4 py-2.5 bg-[#1E3A8A] hover:bg-[#1D4ED8] border-2 border-[#FDE68A] text-[#F5E6C8] font-bold text-xs md:text-sm tracking-wide shadow-[0_0_20px_rgba(30,58,138,0.65)] flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => handleStartChronicle(6)}
+                  className="px-3.5 py-2 bg-[#1E3A8A] hover:bg-[#1D4ED8] border border-[#FDE68A]/80 text-[#F5E6C8] font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Flame className="w-4 h-4 text-[#FDE68A]" />
-                  <span>{ui.jumpToHushangBtn}</span>
+                  <Flame className="w-3.5 h-3.5 text-[#FDE68A]" />
+                  <span>{isFa ? 'نبرد رستم و مازندران' : 'Rostam & Mazandaran'}</span>
                 </button>
 
                 <button
                   data-start-finale="true"
                   onClick={() => handleStartChronicle(11)}
-                  className="px-3.5 py-2.5 bg-[#4C1D95] hover:bg-[#5B21B6] border-2 border-[#FDE68A] text-[#FDE68A] font-bold text-xs md:text-sm tracking-wide flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 bg-[#3B0764] hover:bg-[#4C1D95] border border-[#FDE68A]/80 text-[#FDE68A] font-bold text-xs sm:text-sm cursor-pointer"
                 >
                   <span>
-                    {isFa
-                      ? '🏛️ عصر ۱۲: پایان شاهنامه و کاخ نظم فردوسی (v5.0)'
-                      : '🏛️ Epoch XII: Ferdowsi’s Immortal Finale'}
-                  </span>
-                </button>
-
-                <button
-                  data-gore-burst="true"
-                  onClick={() => {
-                    soundEngine.init();
-                    soundEngine.startSymphonicSoundtrack('chahargah_epic');
-                    window.dispatchEvent(new CustomEvent('shahnameh-trigger-gore-burst'));
-                  }}
-                  className="px-3.5 py-2.5 bg-[#DC2626] hover:bg-[#EF4444] border-2 border-[#FECACA] text-[#FEF2F2] font-bold text-xs md:text-sm flex items-center gap-1.5 shadow-[0_0_24px_rgba(220,38,38,0.85)] cursor-pointer"
-                >
-                  <Skull className="w-4 h-4" />
-                  <span>
-                    {isFa
-                      ? '🩸 ضربه گرز و پاشش خون [F]'
-                      : '🩸 Cleave & Arterial Spray [F]'}
+                    {isFa ? 'عصر دوازدهم: پایان شاهنامه' : 'Epoch XII: Immortal Finale'}
                   </span>
                 </button>
               </div>
 
-              {/* Secondary Tools: Music, Story Scroll, EXE/APK Release, Version Manifest */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setIsCrossroadsOpen(true)}
-                  className="px-3 py-2 bg-[#1A120E] hover:bg-[#D97706]/20 border border-[#D97706]/60 text-[#FDE68A] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>{ui.fullStoryReaderBtn}</span>
-                </button>
-
-                <button
-                  data-open-release-center="true"
-                  onClick={() => setIsExportOpen(true)}
-                  className="px-3 py-2 bg-[#065F46] hover:bg-[#047857] border border-[#FDE68A]/75 text-[#FDE68A] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>
-                    {isFa ? 'خروجی EXE / APK [X]' : 'Export EXE / APK [X]'}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setIsManifestOpen(true)}
-                  className="px-2.5 py-2 bg-[#1A120E] hover:bg-[#D97706]/20 border border-[#D97706]/60 text-[#C8B692] text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                >
-                  <Terminal className="w-3.5 h-3.5 text-[#D97706]" />
-                  <span>v{runState.version}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-2.5 pt-2 border-t border-[#D97706]/25 flex flex-wrap items-center justify-between text-[11px] font-mono text-[#D6C7B2]">
-              <span>{ui.controlHintLine}</span>
-              <span className="text-[#FCA5A5] font-bold">
-                GORE: {Math.round(settings.goreIntensityMultiplier * 100)}% · MODE:{' '}
-                {settings.renderDimension === '3d_gore' ? '3D THREE.JS GORE' : '2D MINIATURE'}
-              </span>
+              <button
+                onClick={() => setIsCrossroadsOpen(true)}
+                className="px-3.5 py-2 bg-[#18110D] hover:bg-[#78350F]/30 border border-[#B45309] text-[#FDE68A] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>{ui.fullStoryReaderBtn}</span>
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* =====================================================================
-          STATE 2: IN-GAME HUD OVERLAY (<= 12% Footprint, Pointer-Events-None)
+          STATE 2: IN-GAME HUD OVERLAY (Clean, Grimdark, Auto-Responsive)
           ===================================================================== */}
       {gameState !== 'title' && (
-        <div className="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 md:p-4">
+        <div className="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-1.5 sm:p-3 md:p-4">
           {/* TOP BAR */}
-          <div className="flex items-start justify-between gap-3 w-full">
-            {/* TOP-START CLUSTER: Royal Farr Vitality + Alignment + v1.1 Div-Warfare Strip */}
-            <div className="pointer-events-auto bg-[#14100D]/90 border border-[#D97706]/65 px-3.5 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex flex-col gap-2 min-w-[295px] max-w-[390px]">
-              {/* Row 1: Discrete Farr Vitality Vessels */}
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-start justify-between gap-1.5 sm:gap-2 w-full">
+            {/* TOP-START CLUSTER: Vitality + Active Faction Switcher + Combat Abilities */}
+            <div className="pointer-events-auto bg-[#0D0907]/92 border border-[#78350F] px-2.5 sm:px-3.5 py-1.5 sm:py-2 shadow-[0_8px_24px_rgba(0,0,0,0.9)] flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[300px] lg:max-w-[380px]">
+              {/* Row 1: Discrete Farr Vitality Vessels + Stability */}
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-[#FDE68A]">
-                  {ui.hudVitalityLabel}
-                </span>
-                <div className="flex items-center gap-1">
-                  {sockets.map((st, idx) => (
-                    <FarrVitalitySocketSvg key={idx} state={st} />
-                  ))}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-[#FDE68A]">
+                    {ui.hudVitalityLabel}
+                  </span>
+                  <div className="flex items-center gap-0.5 sm:gap-1">
+                    {sockets.map((st, idx) => (
+                      <FarrVitalitySocketSvg key={idx} state={st} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              {/* Row 2: Asha vs Ahriman Alignment & Iranshahr Stability */}
-              <div className="flex items-center justify-between text-[11px] font-mono">
-                <span className="text-[#93C5FD] flex items-center gap-1 font-semibold">
-                  <Shield className="w-3 h-3" /> {stanceLabel} (
-                  {runState.alignment > 0
-                    ? `+${runState.alignment}`
-                    : runState.alignment}
-                  )
-                </span>
-                <span className="text-[#6EE7B7] font-semibold">
-                  {ui.hudStabilityLabel}: {Math.round(runState.iranshahrStability)}%
+                <span className="text-[10px] sm:text-[11px] text-[#6EE7B7] font-semibold">
+                  {ui.hudStabilityLabel}:{' '}
+                  {isFa
+                    ? `${toFaDigits(Math.round(runState.iranshahrStability))}٪`
+                    : `${Math.round(runState.iranshahrStability)}%`}
                 </span>
               </div>
 
-              {/* Row 3: v1.1 Era of Hushang Div-Warfare Tactical Strip */}
-              <div className="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-[#D97706]/25 text-[10px] font-mono">
+              {/* Row 2: Active Good/Evil Faction Switcher (Directly toggles Player & Enemy Factions) */}
+              <div className="flex items-center justify-between gap-1.5 text-[10px] sm:text-[11px]">
+                <div className="flex items-center gap-1">
+                  <button
+                    data-testid="hud-faction-asha"
+                    onClick={() => handleSelectFactionAlignment('asha')}
+                    className={`px-2 py-0.5 font-bold border cursor-pointer ${
+                      !isEvilFaction
+                        ? 'bg-[#1E3A8A] border-[#60A5FA] text-[#FDE68A]'
+                        : 'bg-[#140E0B] border-[#78350F]/40 text-[#A89882]'
+                    }`}
+                  >
+                    {isFa ? 'جبهه خیر (اشه)' : 'Good (Asha)'}
+                  </button>
+                  <button
+                    data-testid="hud-faction-ahriman"
+                    onClick={() => handleSelectFactionAlignment('ahriman')}
+                    className={`px-2 py-0.5 font-bold border cursor-pointer ${
+                      isEvilFaction
+                        ? 'bg-[#7F1D1D] border-[#F87171] text-[#FEE2E2]'
+                        : 'bg-[#140E0B] border-[#78350F]/40 text-[#A89882]'
+                    }`}
+                  >
+                    {isFa ? 'جبهه شر (اهریمن)' : 'Evil (Ahriman)'}
+                  </button>
+                </div>
+
+                <span className="text-[#D6C7B2] truncate">
+                  {isFa
+                    ? isEvilFaction
+                      ? 'دشمن: سپاه خیر'
+                      : 'دشمن: سپاه دیوان'
+                    : isEvilFaction
+                    ? 'Foe: Army of Light'
+                    : 'Foe: Army of Divs'}
+                </span>
+              </div>
+
+              {/* Row 3: Combat Tactical Strip (Visible on tablet/desktop) */}
+              <div className="hidden sm:grid grid-cols-3 gap-1.5 pt-1 border-t border-[#78350F]/35 text-[10px]">
                 <div
-                  className={`px-2 py-1 border flex items-center justify-between ${
+                  className={`px-2 py-0.5 border flex items-center justify-between ${
                     telemetry.flintReady
-                      ? 'bg-[#D97706]/25 border-[#F59E0B] text-[#FDE68A]'
-                      : 'bg-[#0B0908] border-[#D97706]/25 text-[#A89882]'
+                      ? 'bg-[#78350F]/30 border-[#D97706] text-[#FDE68A]'
+                      : 'bg-[#090706] border-[#78350F]/25 text-[#A89882]'
                   }`}
                 >
                   <span className="flex items-center gap-1 truncate">
                     <Zap className="w-3 h-3 shrink-0" />
                     {ui.hudSadehFlintLabel}
                   </span>
-                  <span className="font-bold">{telemetry.flintReady ? 'آماده' : '...'}</span>
+                  <span className="font-bold">
+                    {telemetry.flintReady ? (isFa ? 'آماده' : 'Ready') : '...'}
+                  </span>
                 </div>
 
                 <div
-                  className={`px-2 py-1 border flex items-center justify-between ${
+                  className={`px-2 py-0.5 border flex items-center justify-between ${
                     telemetry.boundEnemiesCount > 0
                       ? 'bg-[#1E3A8A]/55 border-[#60A5FA] text-[#DBEAFE]'
-                      : 'bg-[#0B0908] border-[#D97706]/25 text-[#A89882]'
+                      : 'bg-[#090706] border-[#78350F]/25 text-[#A89882]'
                   }`}
                 >
                   <span className="flex items-center gap-1 truncate">
                     <Link2 className="w-3 h-3 shrink-0" />
                     {ui.hudDivBandLabel}
                   </span>
-                  <span className="font-bold">{telemetry.boundEnemiesCount}</span>
+                  <span className="font-bold">
+                    {isFa
+                      ? toFaDigits(telemetry.boundEnemiesCount)
+                      : telemetry.boundEnemiesCount}
+                  </span>
                 </div>
 
                 <div
-                  className={`px-2 py-1 border flex items-center justify-between ${
+                  className={`px-2 py-0.5 border flex items-center justify-between ${
                     telemetry.braziersLit > 0
-                      ? 'bg-[#991B1B]/45 border-[#FDE68A] text-[#FDE68A]'
-                      : 'bg-[#0B0908] border-[#D97706]/25 text-[#A89882]'
+                      ? 'bg-[#7F1D1D]/45 border-[#FDE68A] text-[#FDE68A]'
+                      : 'bg-[#090706] border-[#78350F]/25 text-[#A89882]'
                   }`}
                 >
                   <span className="truncate">{ui.hudBraziersLabel}</span>
-                  <span className="font-bold">{telemetry.braziersLit}/4</span>
+                  <span className="font-bold">
+                    {isFa
+                      ? `${toFaDigits(telemetry.braziersLit)}/۴`
+                      : `${telemetry.braziersLit}/4`}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* TOP-END CLUSTER: Current Epoch Banner, 3D/2D Switch, Music Studio & Epoch Switcher */}
-            <div className="pointer-events-auto flex flex-col items-end gap-1.5">
-              <div className="bg-[#14100D]/90 border border-[#D97706]/65 px-3.5 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.8)] flex items-center gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-[#F59E0B]">
-                      {currentChapterSpec.epochNumber} · v{runState.version}
-                    </span>
-                    <span className="text-[#D97706]/40">|</span>
-                    <span className="text-xs font-bold text-[#FDE68A]">
-                      {isFa ? faChapter.epochTitle : currentChapterSpec.title}
-                    </span>
+            {/* TOP-END CLUSTER: Current Epoch Banner, Core Game Actions & Epoch Switcher */}
+            <div className="pointer-events-auto flex flex-col items-stretch lg:items-end gap-1 sm:gap-1.5 w-full lg:w-auto">
+              <div className="bg-[#0D0907]/92 border border-[#78350F] px-2.5 sm:px-3.5 py-1 sm:py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.9)] flex flex-wrap items-center justify-between lg:justify-end gap-2">
+                <div className="min-w-0">
+                  <div className="text-[11px] sm:text-xs font-bold text-[#FDE68A] truncate">
+                    {isFa ? faChapter.epochTitle : currentChapterSpec.title}
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-[11px] font-mono text-[#D6C7B2]">
+                  <div className="hidden sm:flex items-center gap-2.5 mt-0.5 text-[11px] text-[#D6C7B2]">
                     <span>
                       {ui.hudRenownLabel}:{' '}
-                      <strong className="text-[#FDE68A]">{runState.score}</strong>
+                      <strong className="text-[#FDE68A]">
+                        {isFa ? toFaDigits(runState.score) : runState.score}
+                      </strong>
                     </span>
                     <span>•</span>
                     <span>
-                      موج نبرد:{' '}
-                      <strong className="text-[#F5E6C8]">{telemetry.waveProgress}%</strong>
+                      {isFa ? 'پیشروی نبرد:' : 'Wave:'}{' '}
+                      <strong className="text-[#F5E6C8]">
+                        {isFa
+                          ? `${toFaDigits(telemetry.waveProgress)}٪`
+                          : `${telemetry.waveProgress}%`}
+                      </strong>
                     </span>
                   </div>
                 </div>
 
-                {/* Action Triggers */}
-                <div className="flex items-center gap-1.5 border-s border-[#D97706]/30 ps-2.5">
+                {/* Pure Game Action Triggers (Duel, Heavy Strike, Story Scroll, Pause) */}
+                <div className="flex flex-wrap items-center gap-1 sm:border-s border-[#78350F]/40 sm:ps-2">
                   <button
                     data-testid="hud-duel-boss-btn"
                     onClick={() => {
                       soundEngine.init();
                       window.dispatchEvent(new CustomEvent('shahnameh-enter-duel-boss-fight'));
                     }}
-                    title={isFa ? 'ورود فوری به باس‌فایت دو نفره خیر و شر (1v1 Duel)' : 'Enter 1v1 Good vs. Evil Boss Duel'}
-                    className="px-2 py-1.5 bg-[#7C2D12] hover:bg-[#9A3412] border border-[#FDE68A] text-[#FDE68A] text-[11px] font-mono font-bold flex items-center gap-1 cursor-pointer"
+                    className="px-2 py-1 bg-[#7C2D12] hover:bg-[#9A3412] border border-[#FDE68A] text-[#FDE68A] text-[10px] sm:text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                   >
-                    <span>{isFa ? '⚔️ باس‌فایت ۲ نفره' : '⚔️ 1v1 DUEL'}</span>
+                    <span>{isFa ? '⚔️ نبرد تن‌به‌تن' : '⚔️ 1v1 Duel'}</span>
                   </button>
 
                   <button
@@ -660,90 +648,39 @@ export default function App() {
                       soundEngine.init();
                       window.dispatchEvent(new CustomEvent('shahnameh-trigger-gore-burst'));
                     }}
-                    title={isFa ? 'اجرای فوری قطع عضو و فوران خون [F]' : 'Instant Gore & Dismemberment [F]'}
-                    className="px-2 py-1.5 bg-[#DC2626] hover:bg-[#EF4444] border border-[#FECACA] text-[#FEF2F2] text-[11px] font-mono font-bold flex items-center gap-1 cursor-pointer"
+                    className="px-2 py-1 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#FCA5A5] text-[#FEF2F2] text-[10px] sm:text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <Skull className="w-3.5 h-3.5" />
-                    <span>{isFa ? 'قطع عضو [F]' : 'GORE [F]'}</span>
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setSettings((s) => ({
-                        ...s,
-                        renderDimension:
-                          s.renderDimension === '3d_gore' ? '2d_miniature' : '3d_gore',
-                      }))
-                    }
-                    title={isFa ? 'تغییر حالت 3D Gore / 2D Miniature' : 'Toggle 3D Gore / 2D Mode'}
-                    className="px-2 py-1.5 bg-[#1E3A8A] hover:bg-[#1D4ED8] border border-[#60A5FA] text-[#FDE68A] text-[11px] font-mono font-bold flex items-center gap-1 cursor-pointer"
-                  >
-                    <Box className="w-3.5 h-3.5" />
-                    <span>{settings.renderDimension === '3d_gore' ? '3D GORE' : '2D MINI'}</span>
+                    <span className="hidden sm:inline">
+                      {isFa ? 'ضربه سنگین' : 'Cleave'}
+                    </span>
                   </button>
 
                   <button
                     onClick={() => setIsCrossroadsOpen(true)}
-                    className="px-2.5 py-1.5 bg-[#991B1B] hover:bg-[#B91C1C] border border-[#F59E0B] text-[#FDE68A] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                    className="px-2 py-1 bg-[#1E3A8A] hover:bg-[#1D4ED8] border border-[#F59E0B] text-[#FDE68A] text-[10px] sm:text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">{ui.hudDecreeReadyBtn}</span>
-                  </button>
-
-                  <button
-                    data-open-music="true"
-                    onClick={() => setIsMusicOpen(true)}
-                    title={isFa ? 'تالار موسیقی سمفونیک و Lyria 3' : 'Symphonic & Lyria 3 Music'}
-                    className="p-1.5 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#FDE68A]/80 text-[#FDE68A] cursor-pointer"
-                  >
-                    <Music className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setIsExportOpen(true)}
-                    title={
-                      isFa
-                        ? 'خروجی EXE / APK و انتشار گیت‌هاب [X]'
-                        : 'Export EXE / APK & GitHub [X]'
-                    }
-                    className="p-1.5 bg-[#065F46] hover:bg-[#047857] border border-[#FDE68A]/70 text-[#FDE68A] cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setTouchControlsEnabled((prev) => !prev)}
-                    title={
-                      isFa
-                        ? 'فعال/غیرفعال کردن دسته لمسی موبایل و اندروید (APK)'
-                        : 'Toggle Mobile Touch Gamepad'
-                    }
-                    className={`p-1.5 border cursor-pointer ${
-                      touchControlsEnabled
-                        ? 'bg-[#D97706] text-[#0B0908] border-[#FDE68A]'
-                        : 'bg-[#0B0908] text-[#D97706] border-[#D97706]/45 hover:bg-[#D97706]/25'
-                    }`}
-                  >
-                    <Gamepad2 className="w-4 h-4" />
+                    <span>{ui.hudDecreeReadyBtn}</span>
                   </button>
 
                   <button
                     onClick={() => setIsSettingsOpen(true)}
                     title={ui.settingsBtn}
-                    className="p-1.5 bg-[#0B0908] hover:bg-[#D97706]/25 border border-[#D97706]/45 text-[#FDE68A] cursor-pointer"
+                    className="p-1 sm:p-1.5 bg-[#140E0B] hover:bg-[#78350F]/30 border border-[#78350F] text-[#FDE68A] cursor-pointer"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-3.5 h-3.5" />
                   </button>
 
                   <button
                     onClick={handleToggleMute}
-                    title="Mute / Unmute"
-                    className="p-1.5 bg-[#0B0908] hover:bg-[#D97706]/25 border border-[#D97706]/45 text-[#D97706] cursor-pointer"
+                    title={isFa ? 'صدا' : 'Audio'}
+                    className="p-1 sm:p-1.5 bg-[#140E0B] hover:bg-[#78350F]/30 border border-[#78350F] text-[#D97706] cursor-pointer"
                   >
                     {isMuted ? (
-                      <VolumeX className="w-4 h-4 text-[#A89882]" />
+                      <VolumeX className="w-3.5 h-3.5 text-[#A89882]" />
                     ) : (
-                      <Volume2 className="w-4 h-4" />
+                      <Volume2 className="w-3.5 h-3.5" />
                     )}
                   </button>
 
@@ -751,21 +688,21 @@ export default function App() {
                     onClick={() =>
                       setGameState((prev) => (prev === 'paused' ? 'playing' : 'paused'))
                     }
-                    title="Pause"
-                    className="p-1.5 bg-[#0B0908] hover:bg-[#D97706]/25 border border-[#D97706]/45 text-[#D97706] cursor-pointer"
+                    title={isFa ? 'توقف' : 'Pause'}
+                    className="p-1 sm:p-1.5 bg-[#140E0B] hover:bg-[#78350F]/30 border border-[#78350F] text-[#D97706] cursor-pointer"
                   >
                     {gameState === 'paused' ? (
-                      <Play className="w-4 h-4" />
+                      <Play className="w-3.5 h-3.5" />
                     ) : (
-                      <Pause className="w-4 h-4" />
+                      <Pause className="w-3.5 h-3.5" />
                     )}
                   </button>
                 </div>
               </div>
 
               {/* Epoch Jump Selector Strip (Epochs 1..12) */}
-              <div className="bg-[#14100D]/90 border border-[#D97706]/45 px-2 py-1 flex flex-wrap items-center gap-1 text-[10px]">
-                <span className="text-[#A89882] px-1 font-mono">{ui.hudEpochSelectLabel}</span>
+              <div className="bg-[#0D0907]/92 border border-[#78350F]/60 px-2 py-1 flex items-center gap-1 text-[10px] overflow-x-auto max-w-full">
+                <span className="text-[#A89882] px-1 shrink-0">{ui.hudEpochSelectLabel}</span>
                 {STORY_DATABASE.map((node, idx) => {
                   const faShortNames = [
                     'کیومرث',
@@ -799,13 +736,15 @@ export default function App() {
                     <button
                       key={node.id}
                       onClick={() => handleJumpToEpoch(idx)}
-                      className={`px-1.5 py-0.5 font-semibold cursor-pointer border ${
+                      className={`px-1.5 py-0.5 font-semibold cursor-pointer border shrink-0 ${
                         runState.epochIndex === idx
-                          ? 'bg-[#D97706] text-[#0B0908] border-[#FDE68A]'
-                          : 'bg-[#0B0908] text-[#D6C7B2] border-[#D97706]/30 hover:border-[#F59E0B]'
+                          ? 'bg-[#B45309] text-[#090706] border-[#FDE68A]'
+                          : 'bg-[#090706] text-[#D6C7B2] border-[#78350F]/40 hover:border-[#F59E0B]'
                       }`}
                     >
-                      {idx + 1}. {isFa ? faShortNames[idx] : enShortNames[idx]}
+                      {isFa
+                        ? `${toFaDigits(idx + 1)}. ${faShortNames[idx]}`
+                        : `${idx + 1}. ${enShortNames[idx]}`}
                     </button>
                   );
                 })}
@@ -813,50 +752,89 @@ export default function App() {
             </div>
           </div>
 
-          {/* BOTTOM DOCK: 1v1 TWO-PERSON GOOD VS. EVIL BOSS FIGHT BANNER + RIBBON */}
-          <div className="w-full flex flex-col items-center gap-2">
+          {/* BOTTOM DOCK: 1v1 TWO-PERSON GOOD VS. EVIL BOSS FIGHT BANNER */}
+          <div
+            className={`w-full flex flex-col items-center ${
+              touchControlsEnabled ? 'mb-36 sm:mb-40' : ''
+            }`}
+          >
             {telemetry.bossActive && (
               <div
                 data-testid="duel-boss-fight-banner"
-                className="pointer-events-auto w-full max-w-2xl bg-[#120A0A]/94 border-2 border-[#DC2626] px-4 py-2 shadow-[0_0_32px_rgba(220,38,38,0.65)]"
+                className="pointer-events-auto w-full max-w-2xl bg-[#0D0807]/95 border-2 border-[#991B1B] px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-[0_0_32px_rgba(0,0,0,0.95)]"
               >
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-[#1E3A8A] border border-[#60A5FA] text-[#FDE68A] font-mono text-[10px] font-bold">
-                      {runState.alignment < 0
+                <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
+                  {/* Player Side */}
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span
+                      className={`px-1.5 sm:px-2 py-0.5 border text-[10px] font-bold ${
+                        isEvilFaction
+                          ? 'bg-[#7F1D1D] border-[#F87171] text-[#FEE2E2]'
+                          : 'bg-[#1E3A8A] border-[#60A5FA] text-[#FDE68A]'
+                      }`}
+                    >
+                      {isEvilFaction
                         ? isFa
-                          ? 'خشم اهریمن (شر)'
-                          : 'AHRIMAN WRATH'
+                          ? 'جبهه شر (اهریمن)'
+                          : 'EVIL (AHRIMAN)'
                         : isFa
-                        ? 'فروغ اشه (خیر)'
-                        : 'ASHA LIGHT'}
+                        ? 'جبهه خیر (اشه)'
+                        : 'GOOD (ASHA)'}
                     </span>
                     <span className="font-bold text-[#FDE68A]">
-                      {telemetry.heroTitle || 'پهلوان ایران‌شهر'}
+                      {telemetry.heroTitle || (isFa ? 'پهلوان ایران‌شهر' : 'Champion of Iranshahr')}
                     </span>
                   </div>
 
-                  <span className="px-2 py-0.5 bg-[#DC2626] text-[#FEF2F2] font-mono text-[10px] font-bold tracking-wider">
+                  <span className="px-2 py-0.5 bg-[#7F1D1D] border border-[#D97706]/50 text-[#FEF2F2] text-[10px] font-bold tracking-wider">
                     {telemetry.isDuelBossFight
                       ? isFa
-                        ? '⚔️ باس‌فایت دو نفره (۱ در برابر ۱)'
+                        ? '⚔️ نبرد تن‌به‌تن (۱ در برابر ۱)'
                         : '⚔️ 1v1 BOSS DUEL'
+                      : isFa
+                      ? 'در برابر'
                       : 'VS'}
                   </span>
 
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#FCA5A5]">{telemetry.bossName}</span>
-                    <span className="px-2 py-0.5 bg-[#7F1D1D] border border-[#F87171] text-[#FEE2E2] font-mono text-[10px] font-bold">
-                      {Math.max(0, Math.round(telemetry.bossHp))}/
-                      {Math.max(1, Math.round(telemetry.bossMaxHp))}
+                  {/* Opposing Boss Side (Good Boss if Player is Evil; Evil Boss if Player is Good!) */}
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span
+                      className={`px-1.5 py-0.5 border text-[10px] font-bold ${
+                        isEvilFaction
+                          ? 'bg-[#1E3A8A] border-[#FDE68A] text-[#FDE68A]'
+                          : 'bg-[#450A0A] border-[#F87171] text-[#FCA5A5]'
+                      }`}
+                    >
+                      {isEvilFaction
+                        ? isFa
+                          ? 'پهلوان خیر'
+                          : 'HERO OF LIGHT'
+                        : isFa
+                        ? 'سردار شر'
+                        : 'WARLORD OF DARK'}
+                    </span>
+                    <span className="font-bold text-[#FDE68A]">{telemetry.bossName}</span>
+                    <span className="px-1.5 sm:px-2 py-0.5 bg-[#450A0A] border border-[#F87171] text-[#FEE2E2] text-[10px] font-bold">
+                      {isFa
+                        ? `${toFaDigits(Math.max(0, Math.round(telemetry.bossHp)))}/${toFaDigits(
+                            Math.max(1, Math.round(telemetry.bossMaxHp))
+                          )}`
+                        : `${Math.max(0, Math.round(telemetry.bossHp))}/${Math.max(
+                            1,
+                            Math.round(telemetry.bossMaxHp)
+                          )}`}
                     </span>
                   </div>
                 </div>
 
                 {/* Boss Health Bar */}
-                <div className="mt-1.5 w-full h-2 bg-[#0B0908] border border-[#DC2626]/60 overflow-hidden">
+                <div className="mt-1 sm:mt-1.5 w-full h-1.5 sm:h-2 bg-[#070504] border border-[#78350F] overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#DC2626] via-[#EF4444] to-[#F59E0B] transition-all duration-150"
+                    className={`h-full transition-all duration-150 ${
+                      isEvilFaction
+                        ? 'bg-gradient-to-r from-[#1D4ED8] via-[#3B82F6] to-[#F59E0B]'
+                        : 'bg-gradient-to-r from-[#7F1D1D] via-[#DC2626] to-[#D97706]'
+                    }`}
                     style={{
                       width: `${Math.max(
                         0,
@@ -867,31 +845,19 @@ export default function App() {
                 </div>
               </div>
             )}
-
-            {/* BOTTOM RIBBON: Compact Control & Active Blessing Strip */}
-            <div className="w-full flex items-center justify-between gap-4 bg-[#14100D]/90 border border-[#D97706]/50 px-3.5 py-1.5 text-xs">
-              <div className="flex items-center gap-2 text-[#FDE68A] truncate">
-                <Flame className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
-                <span className="font-bold truncate">{runState.activeBlessingName}</span>
-              </div>
-              <div className="hidden lg:block font-mono text-[11px] text-[#A89882] truncate">
-                {ui.controlHintLine} · X خروجی EXE/APK
-              </div>
-            </div>
           </div>
         </div>
       )}
 
       {/* =====================================================================
-          STATE 3: PAUSE OVERLAY
+          STATE 3: PAUSE OVERLAY (Pure Game Options Only)
           ===================================================================== */}
       {gameState === 'paused' && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4 pointer-events-auto">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/85 p-4 pointer-events-auto">
           <div className="parchment-panel miniature-border max-w-md w-full p-6 text-center shadow-2xl">
             <h2 className="font-display text-2xl font-bold text-[#FDE68A]">
               {ui.pauseTitle}
             </h2>
-            <p className="text-xs text-[#D6C7B2] mt-1.5 italic">{ui.pauseSubtitle}</p>
 
             <div className="mt-6 flex flex-col gap-2.5">
               <button
@@ -899,28 +865,6 @@ export default function App() {
                 className="w-full py-2.5 bg-[#1E3A8A] hover:bg-[#1D4ED8] border border-[#F59E0B] text-[#FDE68A] text-xs font-bold cursor-pointer"
               >
                 {ui.resumeBtn}
-              </button>
-              <button
-                onClick={() => {
-                  setGameState('playing');
-                  setIsMusicOpen(true);
-                }}
-                className="w-full py-2.5 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#FDE68A] text-[#FDE68A] text-xs font-bold cursor-pointer"
-              >
-                {isFa
-                  ? 'تالار موسیقی سمفونیک و Lyria 3'
-                  : 'Symphonic & Lyria 3 Music Studio'}
-              </button>
-              <button
-                onClick={() => {
-                  setGameState('playing');
-                  setIsExportOpen(true);
-                }}
-                className="w-full py-2.5 bg-[#065F46] hover:bg-[#047857] border border-[#FDE68A] text-[#FDE68A] text-xs font-bold cursor-pointer"
-              >
-                {isFa
-                  ? 'خروجی EXE ویندوز / APK اندروید و انتشار گیت‌هاب [X]'
-                  : 'Export Windows .EXE / Android .APK & GitHub [X]'}
               </button>
               <button
                 onClick={() => {
@@ -942,13 +886,13 @@ export default function App() {
               </button>
               <button
                 onClick={handleQuickRestart}
-                className="w-full py-2.5 bg-[#991B1B] hover:bg-[#B91C1C] border border-[#F59E0B]/60 text-[#F5E6C8] text-xs font-bold cursor-pointer"
+                className="w-full py-2.5 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#F59E0B]/60 text-[#F5E6C8] text-xs font-bold cursor-pointer"
               >
                 {ui.restartBtn}
               </button>
               <button
                 onClick={() => setGameState('title')}
-                className="w-full py-2 bg-[#0B0908] hover:bg-[#1C1917] border border-[#D97706]/35 text-[#A89882] text-xs cursor-pointer"
+                className="w-full py-2 bg-[#090706] hover:bg-[#1C1917] border border-[#78350F] text-[#A89882] text-xs cursor-pointer"
               >
                 {ui.returnTitleBtn}
               </button>
@@ -966,7 +910,7 @@ export default function App() {
             <div className="flex justify-center mb-3">
               <PortraitMiniatureSvg
                 portraitId={
-                  stance === 'ABYSSAL_AHRIMAN'
+                  isEvilFaction
                     ? 'div_siah'
                     : runState.epochIndex >= 2
                     ? 'hushang'
@@ -980,31 +924,25 @@ export default function App() {
               {isFa ? endingSummary.persianTitle : endingSummary.title}
             </h2>
 
-            <p className="mt-4 text-sm text-[#F5E6C8] leading-relaxed bg-[#0B0908]/85 border border-[#D97706]/35 p-4">
+            <p className="mt-4 text-sm text-[#F5E6C8] leading-relaxed bg-[#090706]/90 border border-[#78350F] p-4">
               {isFa ? endingSummary.persianEpilogue : endingSummary.epilogue}
             </p>
 
-            <div className="mt-3 text-xs font-mono text-[#F59E0B]">
+            <div className="mt-3 text-xs text-[#F59E0B]">
               {isFa ? endingSummary.persianVerdict : endingSummary.legacyVerdict}
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={handleQuickRestart}
-                className="px-6 py-2.5 bg-[#991B1B] hover:bg-[#B91C1C] border border-[#F59E0B] text-[#FDE68A] text-xs font-bold flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 bg-[#7F1D1D] hover:bg-[#991B1B] border border-[#F59E0B] text-[#FDE68A] text-xs font-bold flex items-center gap-2 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>{ui.restartBtn}</span>
               </button>
               <button
-                onClick={() => handleStartChronicle(2)}
-                className="px-5 py-2.5 bg-[#1E3A8A] hover:bg-[#1D4ED8] border border-[#FDE68A] text-[#F5E6C8] text-xs font-bold cursor-pointer"
-              >
-                {ui.jumpToHushangBtn}
-              </button>
-              <button
                 onClick={() => setGameState('title')}
-                className="px-4 py-2.5 bg-[#120F0D] border border-[#D97706]/50 text-[#D6C7B2] text-xs cursor-pointer"
+                className="px-4 py-2.5 bg-[#120F0D] border border-[#78350F] text-[#D6C7B2] text-xs cursor-pointer"
               >
                 {ui.returnTitleBtn}
               </button>
@@ -1014,7 +952,7 @@ export default function App() {
       )}
 
       {/* =====================================================================
-          MODALS: SHAHNAMEH SCROLL, MANIFEST, SETTINGS, EXPORT, MUSIC STUDIO
+          SHAHNAMEH MORAL CROSSROADS & SETTINGS MODALS
           ===================================================================== */}
       {isCrossroadsOpen && (
         <MoralCrossroadsModal
@@ -1028,37 +966,11 @@ export default function App() {
         />
       )}
 
-      {isManifestOpen && (
-        <VersionManifestModal
-          runState={runState}
-          language={settings.language}
-          onApplyVersionUpdate={handleApplyVersionUpdate}
-          onClose={() => setIsManifestOpen(false)}
-        />
-      )}
-
       {isSettingsOpen && (
         <SettingsModal
           settings={settings}
           onUpdateSettings={setSettings}
           onClose={() => setIsSettingsOpen(false)}
-        />
-      )}
-
-      {isExportOpen && (
-        <ReleaseExportModal
-          language={settings.language}
-          runState={runState}
-          touchControlsEnabled={touchControlsEnabled}
-          onToggleTouchControls={setTouchControlsEnabled}
-          onClose={() => setIsExportOpen(false)}
-        />
-      )}
-
-      {isMusicOpen && (
-        <MusicStudioModal
-          language={settings.language}
-          onClose={() => setIsMusicOpen(false)}
         />
       )}
     </div>

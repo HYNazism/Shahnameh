@@ -144,35 +144,35 @@ export const MoralCrossroadsModal: React.FC<MoralCrossroadsModalProps> = ({
           </div>
         </div>
 
-        {/* Moral Binary Choice Grid: Path of Asha vs Path of Ahriman */}
+        {/* Moral Binary Choice Grid: Path of Asha vs Path of Ahriman -> Launches 1v1 Boss Fight */}
         <div className="mt-6 pt-5 border-t border-[#D97706]/30">
-          <div className="text-xs text-[#D97706] mb-3 flex items-center justify-between">
-            <span>
+          <div className="text-xs text-[#FDE68A] mb-3 flex flex-wrap items-center justify-between gap-2 bg-[#1A110B] border border-[#D97706]/50 px-3.5 py-2">
+            <span className="font-bold">
               {isFa
-                ? 'دوراهی سرنوشت شاهنامه — فرمان شهریاری خود را مهر کنید'
-                : 'ROYAL DECREE AT THE MORAL CROSSROADS — CHOOSE YOUR ETERNAL PATH'}
+                ? '⚔️ دوراهی خیر و شر — با انتخاب هر راه، مستقیماً وارد «باس‌فایت دو نفره (1v1)» آخر این مرحله می‌شوید!'
+                : '⚔️ GOOD VS. EVIL CROSSROADS — Selecting a path launches the 1v1 Two-Person Boss Duel!'}
             </span>
-            <span className="font-mono-tabular">
+            <span className="font-mono-tabular text-[#F59E0B]">
               {isFa
-                ? `ثبات: ${Math.round(iranshahrStability)}٪ · تراز: ${currentAlignment} · کلید [1] یا [2]`
-                : `Press [1] or [2] to Seal Decree`}
+                ? `ثبات: ${Math.round(iranshahrStability)}٪ · تراز: ${currentAlignment} · کلید [1] خیر یا [2] شر`
+                : `Press [1] Good (Asha) or [2] Evil (Ahriman)`}
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Path of Asha Button */}
+            {/* Path of Asha (Good) Button */}
             <button
               type="button"
               onClick={() => onSelectChoice(node.ashaOption)}
               data-testid="choice-asha-btn"
-              className="group text-start p-5 bg-[#0F1E36]/90 hover:bg-[#172B4D] border border-[#F59E0B]/60 hover:border-[#FDE68A] transition-transform duration-150 focus-visible:outline-2 focus-visible:outline-[#FDE68A] flex flex-col justify-between cursor-pointer"
+              className="group text-start p-5 bg-[#0F1E36]/95 hover:bg-[#172B4D] border-2 border-[#F59E0B]/75 hover:border-[#FDE68A] transition-transform duration-150 focus-visible:outline-2 focus-visible:outline-[#FDE68A] flex flex-col justify-between cursor-pointer shadow-[0_0_24px_rgba(30,58,138,0.5)]"
             >
               <div>
                 <div className="flex items-center justify-between gap-2 text-xs text-[#FDE68A] font-mono-tabular">
-                  <span>
-                    {isFa ? 'راه اَشَه · روشنایی، داد و خرد' : 'PATH OF ASHA · LIGHT & JUSTICE'}
+                  <span className="font-bold">
+                    {isFa ? '✨ جبهه خیر · راه اَشَه (روشنایی و داد)' : '✨ PATH OF GOOD · ASHA (LIGHT & JUSTICE)'}
                   </span>
-                  <span>[KEY 1]</span>
+                  <span className="px-2 py-0.5 bg-[#D97706] text-[#0B0908] font-bold">[KEY 1]</span>
                 </div>
                 <h3 className="mt-2 font-display text-lg font-bold text-[#F5E6C8] group-hover:text-[#FDE68A]">
                   {ashaTitle}
@@ -180,34 +180,39 @@ export const MoralCrossroadsModal: React.FC<MoralCrossroadsModalProps> = ({
                 <p className="mt-2 text-xs md:text-sm text-[#E7D1A7] leading-relaxed">{ashaDesc}</p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[#F59E0B]/30 space-y-1 text-xs">
+              <div className="mt-4 pt-3 border-t border-[#F59E0B]/30 space-y-1.5 text-xs">
                 <div className="font-semibold text-[#FDE68A]">
                   {isFa ? `موهبت رزمی: ${ashaBlessing}` : `Blessing: ${ashaBlessing}`}
                 </div>
                 <div className="text-[#E7D1A7]/90">{ashaEffect}</div>
-                <div className="font-mono-tabular text-[#60A5FA] pt-1">
+                <div className="font-mono-tabular text-[#60A5FA] pt-0.5">
                   {isFa
-                    ? `+${node.ashaOption.alignmentDelta} اَشَه · +${node.ashaOption.stabilityDelta}٪ ثبات ایران‌شهر · +${node.ashaOption.farrDelta} ظرف فره`
+                    ? `+${node.ashaOption.alignmentDelta} خیر (اَشَه) · +${node.ashaOption.stabilityDelta}٪ ثبات ایران‌شهر · +${node.ashaOption.farrDelta} ظرف فره`
                     : node.ashaOption.consequenceSummary}
+                </div>
+                <div className="mt-2 py-1.5 px-3 bg-[#1E3A8A] border border-[#FDE68A] text-[#FDE68A] font-bold text-center">
+                  {isFa
+                    ? '⚔️ انتخاب راه خیر و ورود به باس‌فایت دو نفره [1]'
+                    : '⚔️ Choose Good & Enter 1v1 Boss Fight [1]'}
                 </div>
               </div>
             </button>
 
-            {/* Path of Ahriman Button */}
+            {/* Path of Ahriman (Evil) Button */}
             <button
               type="button"
               onClick={() => onSelectChoice(node.ahrimanOption)}
               data-testid="choice-ahriman-btn"
-              className="group text-start p-5 bg-[#280B0B]/90 hover:bg-[#3B1010] border border-[#DC2626]/60 hover:border-[#F87171] transition-transform duration-150 focus-visible:outline-2 focus-visible:outline-[#F87171] flex flex-col justify-between cursor-pointer"
+              className="group text-start p-5 bg-[#280B0B]/95 hover:bg-[#3B1010] border-2 border-[#DC2626]/75 hover:border-[#F87171] transition-transform duration-150 focus-visible:outline-2 focus-visible:outline-[#F87171] flex flex-col justify-between cursor-pointer shadow-[0_0_24px_rgba(220,38,38,0.45)]"
             >
               <div>
                 <div className="flex items-center justify-between gap-2 text-xs text-[#FCA5A5] font-mono-tabular">
-                  <span>
+                  <span className="font-bold">
                     {isFa
-                      ? 'راه اهریمن · سلطه، آتش و خون'
-                      : 'PATH OF AHRIMAN · DARKNESS & MIGHT'}
+                      ? '🔥 جبهه شر · راه اهریمن (سلطه، آتش و خون)'
+                      : '🔥 PATH OF EVIL · AHRIMAN (DARKNESS & MIGHT)'}
                   </span>
-                  <span>[KEY 2]</span>
+                  <span className="px-2 py-0.5 bg-[#DC2626] text-[#FEF2F2] font-bold">[KEY 2]</span>
                 </div>
                 <h3 className="mt-2 font-display text-lg font-bold text-[#F5E6C8] group-hover:text-[#FCA5A5]">
                   {ahrimanTitle}
@@ -217,15 +222,20 @@ export const MoralCrossroadsModal: React.FC<MoralCrossroadsModalProps> = ({
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[#DC2626]/30 space-y-1 text-xs">
+              <div className="mt-4 pt-3 border-t border-[#DC2626]/30 space-y-1.5 text-xs">
                 <div className="font-semibold text-[#FCA5A5]">
                   {isFa ? `موهبت رزمی: ${ahrimanBlessing}` : `Blessing: ${ahrimanBlessing}`}
                 </div>
                 <div className="text-[#E7D1A7]/90">{ahrimanEffect}</div>
-                <div className="font-mono-tabular text-[#F87171] pt-1">
+                <div className="font-mono-tabular text-[#F87171] pt-0.5">
                   {isFa
-                    ? `${node.ahrimanOption.alignmentDelta} اهریمن · ${node.ahrimanOption.stabilityDelta}٪ ثبات · +${node.ahrimanOption.lifestealOnKill} جذب جان در هر کشتن`
+                    ? `${node.ahrimanOption.alignmentDelta} شر (اهریمن) · ${node.ahrimanOption.stabilityDelta}٪ ثبات · +${node.ahrimanOption.lifestealOnKill} جذب جان`
                     : node.ahrimanOption.consequenceSummary}
+                </div>
+                <div className="mt-2 py-1.5 px-3 bg-[#991B1B] border border-[#FECACA] text-[#FEF2F2] font-bold text-center">
+                  {isFa
+                    ? '🔥 انتخاب راه شر و ورود به باس‌فایت دو نفره [2]'
+                    : '🔥 Choose Evil & Enter 1v1 Boss Fight [2]'}
                 </div>
               </div>
             </button>

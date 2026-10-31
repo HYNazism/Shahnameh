@@ -91,6 +91,8 @@ export default function App() {
     boundEnemiesCount: 0,
     braziersLit: 0,
     flintReady: true,
+    isDuelBossFight: false,
+    heroTitle: 'کیومرث (پلنگینه‌پوش)',
   });
 
   const handleSyncTelemetry = useCallback((next: LiveCombatTelemetry) => {
@@ -105,7 +107,9 @@ export default function App() {
         prev.activeEnemyCount === next.activeEnemyCount &&
         prev.boundEnemiesCount === next.boundEnemiesCount &&
         prev.braziersLit === next.braziersLit &&
-        prev.flintReady === next.flintReady
+        prev.flintReady === next.flintReady &&
+        prev.isDuelBossFight === next.isDuelBossFight &&
+        prev.heroTitle === next.heroTitle
       ) {
         return prev;
       }
@@ -209,6 +213,7 @@ export default function App() {
 
   const handleSelectMoralChoice = useCallback(
     (choice: MoralChoiceOption) => {
+      soundEngine.init();
       soundEngine.playMoralChoiceChime(choice.path);
       if (choice.path === 'ahriman') {
         soundEngine.setSymphonicMode('ahriman_doom');
@@ -224,6 +229,15 @@ export default function App() {
         )
       );
       setIsCrossroadsOpen(false);
+      setGameState('playing');
+      // Transition directly from the Moral Crossroads screen into the 1v1 Good vs. Evil Boss Duel!
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent('shahnameh-enter-duel-boss-fight', {
+            detail: { path: choice.path },
+          })
+        );
+      }, 30);
     },
     [currentCrossroads]
   );
@@ -324,6 +338,7 @@ export default function App() {
           onToggleMute={handleToggleMute}
           onOpenSettings={() => setIsSettingsOpen((prev) => !prev)}
           onQuickRestart={handleQuickRestart}
+          onRequestGoodEvilCrossroads={() => setIsCrossroadsOpen(true)}
         />
       ) : (
         <GameCanvas
@@ -629,6 +644,18 @@ export default function App() {
                 {/* Action Triggers */}
                 <div className="flex items-center gap-1.5 border-s border-[#D97706]/30 ps-2.5">
                   <button
+                    data-testid="hud-duel-boss-btn"
+                    onClick={() => {
+                      soundEngine.init();
+                      window.dispatchEvent(new CustomEvent('shahnameh-enter-duel-boss-fight'));
+                    }}
+                    title={isFa ? 'ورود فوری به باس‌فایت دو نفره خیر و شر (1v1 Duel)' : 'Enter 1v1 Good vs. Evil Boss Duel'}
+                    className="px-2 py-1.5 bg-[#7C2D12] hover:bg-[#9A3412] border border-[#FDE68A] text-[#FDE68A] text-[11px] font-mono font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>{isFa ? '⚔️ باس‌فایت ۲ نفره' : '⚔️ 1v1 DUEL'}</span>
+                  </button>
+
+                  <button
                     onClick={() => {
                       soundEngine.init();
                       window.dispatchEvent(new CustomEvent('shahnameh-trigger-gore-burst'));
@@ -786,14 +813,70 @@ export default function App() {
             </div>
           </div>
 
-          {/* BOTTOM RIBBON: Compact Control & Active Blessing Strip */}
-          <div className="w-full flex items-center justify-between gap-4 bg-[#14100D]/90 border border-[#D97706]/50 px-3.5 py-1.5 text-xs">
-            <div className="flex items-center gap-2 text-[#FDE68A] truncate">
-              <Flame className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
-              <span className="font-bold truncate">{runState.activeBlessingName}</span>
-            </div>
-            <div className="hidden lg:block font-mono text-[11px] text-[#A89882] truncate">
-              {ui.controlHintLine} · X خروجی EXE/APK
+          {/* BOTTOM DOCK: 1v1 TWO-PERSON GOOD VS. EVIL BOSS FIGHT BANNER + RIBBON */}
+          <div className="w-full flex flex-col items-center gap-2">
+            {telemetry.bossActive && (
+              <div
+                data-testid="duel-boss-fight-banner"
+                className="pointer-events-auto w-full max-w-2xl bg-[#120A0A]/94 border-2 border-[#DC2626] px-4 py-2 shadow-[0_0_32px_rgba(220,38,38,0.65)]"
+              >
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-[#1E3A8A] border border-[#60A5FA] text-[#FDE68A] font-mono text-[10px] font-bold">
+                      {runState.alignment < 0
+                        ? isFa
+                          ? 'خشم اهریمن (شر)'
+                          : 'AHRIMAN WRATH'
+                        : isFa
+                        ? 'فروغ اشه (خیر)'
+                        : 'ASHA LIGHT'}
+                    </span>
+                    <span className="font-bold text-[#FDE68A]">
+                      {telemetry.heroTitle || 'پهلوان ایران‌شهر'}
+                    </span>
+                  </div>
+
+                  <span className="px-2 py-0.5 bg-[#DC2626] text-[#FEF2F2] font-mono text-[10px] font-bold tracking-wider">
+                    {telemetry.isDuelBossFight
+                      ? isFa
+                        ? '⚔️ باس‌فایت دو نفره (۱ در برابر ۱)'
+                        : '⚔️ 1v1 BOSS DUEL'
+                      : 'VS'}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#FCA5A5]">{telemetry.bossName}</span>
+                    <span className="px-2 py-0.5 bg-[#7F1D1D] border border-[#F87171] text-[#FEE2E2] font-mono text-[10px] font-bold">
+                      {Math.max(0, Math.round(telemetry.bossHp))}/
+                      {Math.max(1, Math.round(telemetry.bossMaxHp))}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Boss Health Bar */}
+                <div className="mt-1.5 w-full h-2 bg-[#0B0908] border border-[#DC2626]/60 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#DC2626] via-[#EF4444] to-[#F59E0B] transition-all duration-150"
+                    style={{
+                      width: `${Math.max(
+                        0,
+                        Math.min(100, (telemetry.bossHp / Math.max(1, telemetry.bossMaxHp)) * 100)
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* BOTTOM RIBBON: Compact Control & Active Blessing Strip */}
+            <div className="w-full flex items-center justify-between gap-4 bg-[#14100D]/90 border border-[#D97706]/50 px-3.5 py-1.5 text-xs">
+              <div className="flex items-center gap-2 text-[#FDE68A] truncate">
+                <Flame className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
+                <span className="font-bold truncate">{runState.activeBlessingName}</span>
+              </div>
+              <div className="hidden lg:block font-mono text-[11px] text-[#A89882] truncate">
+                {ui.controlHintLine} · X خروجی EXE/APK
+              </div>
             </div>
           </div>
         </div>

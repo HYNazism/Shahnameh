@@ -26,6 +26,8 @@ export interface LiveCombatTelemetry {
   boundEnemiesCount: number;
   braziersLit: number;
   flintReady: boolean;
+  isDuelBossFight?: boolean;
+  heroTitle?: string;
 }
 
 interface GameCanvasProps {

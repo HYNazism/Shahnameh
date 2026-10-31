@@ -23,6 +23,7 @@ interface ThreeGoreArenaProps {
   onSyncRunState: (updater: (prev: PlayerRunState) => PlayerRunState) => void;
   onSyncTelemetry: (telemetry: LiveCombatTelemetry) => void;
   onEpochWaveCleared: () => void;
+  onRequestGoodEvilCrossroads?: () => void;
   onPlayerDefeated: () => void;
   onTriggerPause: () => void;
   onToggleMute: () => void;
@@ -121,6 +122,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
   onSyncRunState,
   onSyncTelemetry,
   onEpochWaveCleared,
+  onRequestGoodEvilCrossroads,
   onPlayerDefeated,
   onTriggerPause,
   onToggleMute,
@@ -143,6 +145,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     onSyncRunState,
     onSyncTelemetry,
     onEpochWaveCleared,
+    onRequestGoodEvilCrossroads,
     onPlayerDefeated,
     onTriggerPause,
     onToggleMute,
@@ -153,6 +156,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     onSyncRunState,
     onSyncTelemetry,
     onEpochWaveCleared,
+    onRequestGoodEvilCrossroads,
     onPlayerDefeated,
     onTriggerPause,
     onToggleMute,
@@ -185,7 +189,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.22;
+    renderer.toneMappingExposure = 1.24;
     renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = !isSoftwareGl;
@@ -205,15 +209,15 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     pmremGenerator.dispose();
 
     const camera = new THREE.PerspectiveCamera(36, width / height, 0.5, 160);
-    camera.position.set(0, 11.8, 13.2);
+    camera.position.set(0, 10.8, 12.2);
     camera.lookAt(0, 1.0, 0);
 
     // 3. Balanced 3-Point Studio & Fire Lighting Rig
-    const hemiLight = new THREE.HemisphereLight(0x60a5fa, 0x2a0a08, 0.9);
+    const hemiLight = new THREE.HemisphereLight(0x60a5fa, 0x2a0a08, 0.95);
     hemiLight.position.set(0, 30, 0);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffe4b5, 2.5);
+    const keyLight = new THREE.DirectionalLight(0xffe4b5, 2.55);
     keyLight.position.set(14, 26, 16);
     keyLight.castShadow = !isSoftwareGl;
     const d = 24;
@@ -229,11 +233,13 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     keyLight.shadow.normalBias = 0.02;
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xdc2626, 1.35);
+    const rimLight = new THREE.DirectionalLight(0xdc2626, 1.38);
     rimLight.position.set(-16, 14, -14);
     scene.add(rimLight);
 
-    // 4. Procedural Persian Miniature & Carved Stone Floor Texture
+    // =========================================================================
+    // 4. PROCEDURAL SHAHNAMEH TEXTURES (Leopard Pelt, Babr-e Bayan Tiger, Derafsh Kaviani)
+    // =========================================================================
     const createArenaFloorTexture = () => {
       const c = document.createElement('canvas');
       c.width = 512;
@@ -242,7 +248,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       ctx.fillStyle = '#150F0D';
       ctx.fillRect(0, 0, 512, 512);
 
-      // Lapis & Gold Persian geometric tiles
       ctx.strokeStyle = '#3E2716';
       ctx.lineWidth = 2.5;
       for (let i = 0; i <= 512; i += 64) {
@@ -256,7 +261,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         ctx.stroke();
       }
 
-      // Central Shamseh Medallion
       ctx.strokeStyle = '#B45309';
       ctx.lineWidth = 3.5;
       ctx.beginPath();
@@ -275,6 +279,98 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       return tex;
     };
 
+    // Leopard Pelt Texture for Keyumars & Siamak (پوست پلنگینه کیومرث و سیامک)
+    const createLeopardPeltTexture = () => {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = '#D97706';
+      ctx.fillRect(0, 0, 256, 256);
+
+      for (let i = 0; i < 42; i++) {
+        const x = (i * 53) % 240 + 8;
+        const y = ((i * 79) % 240) + 8;
+        ctx.fillStyle = '#78350F';
+        ctx.beginPath();
+        ctx.arc(x, y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#1C1917';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, 8.5, 0.3, Math.PI * 1.65);
+        ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    };
+
+    // Babr-e Bayan Tiger-Stripe Texture for Jahan-Pahlavan Rostam (زره ببر بیان رستم)
+    const createBabrBayanTexture = () => {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = '#C2410C';
+      ctx.fillRect(0, 0, 256, 256);
+
+      // Black tiger stripes + gold chainmail trim
+      ctx.fillStyle = '#18181B';
+      for (let y = 12; y < 250; y += 26) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.quadraticCurveTo(128, y + (y % 52 === 0 ? 14 : -12), 256, y + 4);
+        ctx.lineTo(256, y + 11);
+        ctx.quadraticCurveTo(128, y + 6, 0, y + 8);
+        ctx.fill();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    };
+
+    // Derafsh Kaviani Royal Standard Texture (درفش کاویانی کاوه آهنگر و فریدون)
+    const createDerafshKavianiTexture = () => {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = '#581C87'; // Royal purple
+      ctx.fillRect(0, 0, 256, 256);
+
+      // Crimson & Gold Border
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 14;
+      ctx.strokeRect(10, 10, 236, 236);
+      ctx.fillStyle = '#991B1B';
+      ctx.fillRect(24, 24, 208, 208);
+
+      // 4-Pointed Golden Akhtar-e Kaviani Star
+      ctx.fillStyle = '#FDE68A';
+      ctx.beginPath();
+      ctx.moveTo(128, 38);
+      ctx.lineTo(152, 104);
+      ctx.lineTo(218, 128);
+      ctx.lineTo(152, 152);
+      ctx.lineTo(128, 218);
+      ctx.lineTo(104, 152);
+      ctx.lineTo(38, 128);
+      ctx.lineTo(104, 104);
+      ctx.closePath();
+      ctx.fill();
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    };
+
+    const leopardPeltTex = createLeopardPeltTexture();
+    const babrBayanTex = createBabrBayanTexture();
+    const derafshKavianiTex = createDerafshKavianiTexture();
+
     const floorGeo = new THREE.PlaneGeometry(42, 30);
     const floorMat = new THREE.MeshStandardMaterial({
       map: createArenaFloorTexture(),
@@ -285,6 +381,22 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     floorMesh.rotation.x = -Math.PI / 2;
     floorMesh.receiveShadow = !isSoftwareGl;
     scene.add(floorMesh);
+
+    // 1v1 Duel Ring of Destiny (Blazing Circle on Floor during 1v1 Good vs Evil Boss Fight)
+    const duelRingGeo = new THREE.RingGeometry(5.6, 6.1, 48);
+    duelRingGeo.rotateX(-Math.PI / 2);
+    const duelRingMat = new THREE.MeshBasicMaterial({
+      color: 0xf59e0b,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.0,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    const duelRingMesh = new THREE.Mesh(duelRingGeo, duelRingMat);
+    duelRingMesh.position.y = 0.04;
+    scene.add(duelRingMesh);
 
     // 5. Natural Outdoor Alborz / Damavand Mountain Crags Perimeter
     const cragCount = 36;
@@ -329,9 +441,30 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     });
 
     // =========================================================================
-    // 6. ANATOMICALLY PROPORTIONATE, ARTICULATED PERSIAN PAHLAVAN / SHAH 3D RIG
+    // 6. EPOCH-SPECIFIC SHAHNAMEH HERO BUILDER (Keyumars, Siamak, Hushang, Kaveh, Fereydun, Rostam, Siyavash)
     // =========================================================================
-    const buildPersianHeroGroup = (): {
+    const getEpochHeroTitle = (epochIdx: number): string => {
+      const titles = [
+        'کیومرث پلنگینه‌پوش (Shah Keyumars)',
+        'شاهزاده سیامک (Prince Siamak)',
+        'شاه هوشنگ آهنگر (Shah Hushang)',
+        'طهمورث دیوبند (Tahmuras Divband)',
+        'کاوه آهنگر با درفش کاویانی (Kaveh Ahangar)',
+        'فریدون فرخ با گرز گاوسار (Shah Fereydun)',
+        'رستم دستان با ببر بیان (Jahan-Pahlavan Rostam)',
+        'رستم دستان (Rostam Dastan)',
+        'شاهزاده سیاوش پاک‌سرشت (Prince Siyavash)',
+        'رستم دستان با تیر گز سیمرغ (Rostam vs Esfandiyar)',
+        'رستم دستان با کمان واپسین (Rostam in Kabul)',
+        'سپهبد رستم فرخزاد و فردوسی (Rostam Farrokhzad)',
+      ];
+      return titles[Math.min(epochIdx, titles.length - 1)] || titles[0];
+    };
+
+    const buildPersianHeroGroup = (
+      epochIdx: number,
+      alignment: number
+    ): {
       root: THREE.Group;
       leftLegGroup: THREE.Group;
       rightLegGroup: THREE.Group;
@@ -342,9 +475,24 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     } => {
       const root = new THREE.Group();
 
-      // Materials
+      // Determine which iconic Shahnameh Hero is active in this Epoch:
+      const isKeyumars = epochIdx === 0;
+      const isSiamak = epochIdx === 1;
+      const isHushang = epochIdx === 2;
+      const isTahmuras = epochIdx === 3;
+      const isKaveh = epochIdx === 4;
+      const isFereydun = epochIdx === 5;
+      const isRostam = epochIdx === 6 || epochIdx === 7 || epochIdx === 9 || epochIdx === 10;
+      const isSiyavash = epochIdx === 8;
+
+      // Rostam is "Piltan" (Elephant-bodied / broader & taller)
+      const heroScale = isRostam ? 1.12 : 1.0;
+      root.scale.setScalar(heroScale);
+
+      const isEvilAhriman = alignment <= -15;
+
       const bronzeMat = new THREE.MeshStandardMaterial({
-        color: 0xb45309,
+        color: isEvilAhriman ? 0x7f1d1d : 0xb45309,
         roughness: 0.3,
         metalness: 0.82,
       });
@@ -354,26 +502,60 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         metalness: 0.92,
         clearcoat: 0.5,
       });
-      const lapisArmorMat = new THREE.MeshPhysicalMaterial({
-        color: 0x1e3a8a,
-        roughness: 0.32,
-        metalness: 0.62,
-        clearcoat: 0.55,
-      });
+
+      // Authentic Epoch Cuirass / Tunic Material
+      const torsoMat = isKeyumars
+        ? new THREE.MeshStandardMaterial({
+            map: leopardPeltTex,
+            roughness: 0.72,
+          })
+        : isSiamak
+        ? new THREE.MeshStandardMaterial({
+            color: 0xd99b72, // Bare-chested muscular Siamak (`سیامک بیامد برهنه تنا`)
+            roughness: 0.55,
+          })
+        : isRostam
+        ? new THREE.MeshStandardMaterial({
+            map: babrBayanTex, // Iconic Tiger-striped Babr-e Bayan (`زره ببر بیان`)
+            roughness: 0.58,
+          })
+        : isKaveh
+        ? new THREE.MeshStandardMaterial({
+            color: 0x5c2d16, // Blacksmith heavy leather apron (`پیش‌بند چرمی کاوه آهنگر`)
+            roughness: 0.78,
+          })
+        : isSiyavash
+        ? new THREE.MeshPhysicalMaterial({
+            color: 0xf8fafc, // Pure white Fire-Ordeal tunic (`جامه سپید سیاوش`)
+            roughness: 0.25,
+            clearcoat: 0.6,
+          })
+        : isHushang
+        ? new THREE.MeshPhysicalMaterial({
+            color: 0x27272a, // Forged dark-iron Sadeh armor
+            emissive: 0x7c2d12,
+            emissiveIntensity: 0.35,
+            roughness: 0.32,
+            metalness: 0.85,
+          })
+        : new THREE.MeshPhysicalMaterial({
+            color: isFereydun ? 0x065f46 : 0x1e3a8a,
+            roughness: 0.3,
+            metalness: 0.65,
+            clearcoat: 0.55,
+          });
+
       const crimsonClothMat = new THREE.MeshStandardMaterial({
-        color: 0x991b1b,
+        color: isSiyavash ? 0xe2e8f0 : 0x991b1b,
         roughness: 0.65,
-        metalness: 0.1,
       });
       const darkLeatherMat = new THREE.MeshStandardMaterial({
         color: 0x291d18,
         roughness: 0.72,
-        metalness: 0.15,
       });
       const skinMat = new THREE.MeshStandardMaterial({
         color: 0xeab68c,
         roughness: 0.55,
-        metalness: 0.05,
       });
       const steelMat = new THREE.MeshStandardMaterial({
         color: 0xe2e8f0,
@@ -386,14 +568,14 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       shadow.position.y = 0.02;
       root.add(shadow);
 
-      // Helper to build an articulated leg (hip -> thigh -> knee guard -> shin greave -> boot)
+      // Articulated Legs
       const createLegRig = (offsetX: number) => {
         const legGroup = new THREE.Group();
         legGroup.position.set(offsetX, 0.92, 0);
 
         const thighGeo = new THREE.CylinderGeometry(0.15, 0.13, 0.44, 10);
         thighGeo.translate(0, -0.22, 0);
-        const thigh = new THREE.Mesh(thighGeo, darkLeatherMat);
+        const thigh = new THREE.Mesh(thighGeo, isKeyumars ? torsoMat : darkLeatherMat);
         legGroup.add(thigh);
 
         const kneeGeo = new THREE.SphereGeometry(0.135, 10, 8);
@@ -418,9 +600,14 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       const rightLegGroup = createLegRig(0.21);
       root.add(leftLegGroup, rightLegGroup);
 
-      // Armored Pelvis & Persian Royal Kamarband (Waist Belt + Tassets)
+      // Pelvis & Belt
       const pelvisGeo = new THREE.CylinderGeometry(0.34, 0.31, 0.28, 12);
-      const pelvis = new THREE.Mesh(pelvisGeo, crimsonClothMat);
+      const pelvis = new THREE.Mesh(
+        pelvisGeo,
+        isKeyumars || isSiamak
+          ? new THREE.MeshStandardMaterial({ map: leopardPeltTex, roughness: 0.7 })
+          : crimsonClothMat
+      );
       pelvis.position.set(0, 0.98, 0);
       root.add(pelvis);
 
@@ -429,26 +616,62 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       belt.position.set(0, 1.08, 0);
       root.add(belt);
 
-      // V-Tapered Heroic Cuirass Torso (Jawshan-e Kiani / Babr-e Bayan)
-      const torsoGeo = new THREE.CylinderGeometry(0.46, 0.33, 0.78, 12);
-      const torso = new THREE.Mesh(torsoGeo, lapisArmorMat);
-      torso.scale.set(1.08, 1.0, 0.76);
+      // V-Tapered Hero Torso
+      const torsoGeo = new THREE.CylinderGeometry(0.47, 0.33, 0.78, 12);
+      const torso = new THREE.Mesh(torsoGeo, torsoMat);
+      torso.scale.set(1.1, 1.0, 0.78);
       torso.position.set(0, 1.5, 0);
       torso.castShadow = !isSoftwareGl;
       root.add(torso);
 
-      // Golden Shamseh Chest Medallion
-      const chestPlateGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.05, 12);
-      chestPlateGeo.rotateX(Math.PI / 2);
-      const chestPlate = new THREE.Mesh(chestPlateGeo, goldMat);
-      chestPlate.position.set(0, 1.58, 0.34);
-      root.add(chestPlate);
+      // If Siamak: Leopard-pelt diagonal baldric sash across bare chest
+      if (isSiamak) {
+        const sashGeo = new THREE.TorusGeometry(0.42, 0.07, 8, 20);
+        const sash = new THREE.Mesh(
+          sashGeo,
+          new THREE.MeshStandardMaterial({ map: leopardPeltTex })
+        );
+        sash.position.set(0, 1.52, 0);
+        sash.rotation.y = Math.PI / 2;
+        sash.rotation.x = 0.65;
+        root.add(sash);
+      }
 
-      // Flowing Royal Crimson Cape on Back
+      // If Tahmuras or Rostam: Coiled Golden Kemend (Demon-Binding Lasso) on chest/shoulder
+      if (isTahmuras || isRostam) {
+        const lassoGeo = new THREE.TorusGeometry(0.36, 0.045, 8, 24);
+        const lasso = new THREE.Mesh(lassoGeo, goldMat);
+        lasso.position.set(-0.12, 1.55, 0.04);
+        lasso.rotation.y = 0.4;
+        lasso.rotation.x = 0.75;
+        root.add(lasso);
+      }
+
+      // If Kaveh the Blacksmith (Epoch 4) or Finale Rostam Farrokhzad (Epoch 11):
+      // Mount the tall Derafsh Kaviani Banner (`درفش کاویانی`) rising behind shoulders!
+      if (isKaveh || isFereydun || epochIdx === 11) {
+        const bannerPoleGeo = new THREE.CylinderGeometry(0.035, 0.035, 2.9, 8);
+        const bannerPole = new THREE.Mesh(bannerPoleGeo, goldMat);
+        bannerPole.position.set(-0.25, 2.35, -0.34);
+        root.add(bannerPole);
+
+        const flagGeo = new THREE.PlaneGeometry(0.95, 1.15);
+        const flagMat = new THREE.MeshStandardMaterial({
+          map: derafshKavianiTex,
+          side: THREE.DoubleSide,
+          roughness: 0.4,
+        });
+        const flagMesh = new THREE.Mesh(flagGeo, flagMat);
+        flagMesh.position.set(-0.25, 3.1, -0.36);
+        root.add(flagMesh);
+      }
+
+      // Flowing Royal Cape on Back
       const capeGeo = new THREE.PlaneGeometry(0.86, 1.45, 4, 6);
       capeGeo.translate(0, -0.72, 0);
       const capeMat = new THREE.MeshStandardMaterial({
-        color: 0x991b1b,
+        map: isKeyumars ? leopardPeltTex : null,
+        color: isKeyumars ? 0xffffff : isSiyavash ? 0xf8fafc : isRostam ? 0x7f1d1d : 0x991b1b,
         roughness: 0.7,
         side: THREE.DoubleSide,
       });
@@ -457,18 +680,24 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       capeMesh.rotation.x = 0.18;
       root.add(capeMesh);
 
-      // Articulated Left Arm + Persian Sepah Round Shield
+      // Articulated Left Arm + Shield / Chachi Bow
       const leftArmGroup = new THREE.Group();
       leftArmGroup.position.set(-0.54, 1.78, 0);
 
-      const pauldronGeo = new THREE.SphereGeometry(0.2, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.65);
-      const leftPauldron = new THREE.Mesh(pauldronGeo, goldMat);
+      const pauldronGeo = new THREE.SphereGeometry(0.21, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.65);
+      const leftPauldron = new THREE.Mesh(
+        pauldronGeo,
+        isRostam ? torsoMat : isSiamak || isKaveh ? bronzeMat : goldMat
+      );
       leftPauldron.position.set(0, 0.04, 0);
       leftArmGroup.add(leftPauldron);
 
       const upperArmGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.38, 10);
       upperArmGeo.translate(0, -0.19, 0);
-      const leftUpperArm = new THREE.Mesh(upperArmGeo, crimsonClothMat);
+      const leftUpperArm = new THREE.Mesh(
+        upperArmGeo,
+        isSiamak || isKaveh ? skinMat : crimsonClothMat
+      );
       leftArmGroup.add(leftUpperArm);
 
       const forearmGeo = new THREE.CylinderGeometry(0.1, 0.085, 0.36, 10);
@@ -478,44 +707,71 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       leftForearm.rotation.x = -0.55;
       leftArmGroup.add(leftForearm);
 
-      // Authentic Round Persian Sepah Shield mounted on left forearm
-      const shieldGroup = new THREE.Group();
-      shieldGroup.position.set(-0.08, -0.45, 0.28);
-      shieldGroup.rotation.y = -0.35;
-      shieldGroup.rotation.x = -0.15;
+      // In Epoch 9 (Esfandiyar) & Epoch 10 (Shaghad): Rostam holds his Golden Chachi Bow (`کمان چاچی و تیر گز`)
+      if (epochIdx === 9 || epochIdx === 10) {
+        const bowArcGeo = new THREE.TorusGeometry(0.56, 0.035, 8, 24, Math.PI * 1.15);
+        const bowArc = new THREE.Mesh(bowArcGeo, goldMat);
+        bowArc.position.set(-0.1, -0.45, 0.32);
+        bowArc.rotation.y = Math.PI / 2;
+        leftArmGroup.add(bowArc);
 
-      const shieldDiskGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.05, 20);
-      shieldDiskGeo.rotateX(Math.PI / 2);
-      const shieldDiskMat = new THREE.MeshPhysicalMaterial({
-        color: 0x7f1d1d,
-        roughness: 0.28,
-        metalness: 0.72,
-        clearcoat: 0.6,
-      });
-      const shieldDisk = new THREE.Mesh(shieldDiskGeo, shieldDiskMat);
-      shieldGroup.add(shieldDisk);
+        // Glowing Double-Pronged Tamarisk Arrow (تیر گز دوشاخه سیمرغ)
+        const arrowShaftGeo = new THREE.CylinderGeometry(0.018, 0.018, 1.1, 6);
+        arrowShaftGeo.rotateX(Math.PI / 2);
+        const arrowMat = new THREE.MeshStandardMaterial({
+          color: 0xfde68a,
+          emissive: 0xd97706,
+          emissiveIntensity: 0.9,
+        });
+        const arrowShaft = new THREE.Mesh(arrowShaftGeo, arrowMat);
+        arrowShaft.position.set(-0.08, -0.45, 0.55);
+        leftArmGroup.add(arrowShaft);
+      } else {
+        // Authentic Round Persian Sepah Shield
+        const shieldGroup = new THREE.Group();
+        shieldGroup.position.set(-0.08, -0.45, 0.28);
+        shieldGroup.rotation.y = -0.35;
+        shieldGroup.rotation.x = -0.15;
 
-      const shieldRimGeo = new THREE.TorusGeometry(0.42, 0.03, 8, 24);
-      const shieldRim = new THREE.Mesh(shieldRimGeo, goldMat);
-      shieldGroup.add(shieldRim);
+        const shieldDiskGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.05, 20);
+        shieldDiskGeo.rotateX(Math.PI / 2);
+        const shieldDiskMat = new THREE.MeshPhysicalMaterial({
+          color: isSiyavash ? 0xf8fafc : 0x7f1d1d,
+          roughness: 0.28,
+          metalness: 0.72,
+          clearcoat: 0.6,
+        });
+        const shieldDisk = new THREE.Mesh(shieldDiskGeo, shieldDiskMat);
+        shieldGroup.add(shieldDisk);
 
-      const shieldBossGeo = new THREE.SphereGeometry(0.11, 10, 8);
-      const shieldBoss = new THREE.Mesh(shieldBossGeo, goldMat);
-      shieldBoss.position.set(0, 0, 0.03);
-      shieldGroup.add(shieldBoss);
+        const shieldRimGeo = new THREE.TorusGeometry(0.42, 0.03, 8, 24);
+        const shieldRim = new THREE.Mesh(shieldRimGeo, goldMat);
+        shieldGroup.add(shieldRim);
 
-      leftArmGroup.add(shieldGroup);
+        const shieldBossGeo = new THREE.SphereGeometry(0.11, 10, 8);
+        const shieldBoss = new THREE.Mesh(shieldBossGeo, goldMat);
+        shieldBoss.position.set(0, 0, 0.03);
+        shieldGroup.add(shieldBoss);
+
+        leftArmGroup.add(shieldGroup);
+      }
       root.add(leftArmGroup);
 
-      // Articulated Right Arm + Gorz-e Gavsar (Bull-Headed Royal Mace)
+      // Articulated Right Arm + Epoch-Specific Weapon (Gorz-e Gavsar / Kaveh Hammer / Siamak Shamshir)
       const weaponPivot = new THREE.Group();
       weaponPivot.position.set(0.54, 1.78, 0);
 
-      const rightPauldron = new THREE.Mesh(pauldronGeo, goldMat);
+      const rightPauldron = new THREE.Mesh(
+        pauldronGeo,
+        isRostam ? torsoMat : isSiamak || isKaveh ? bronzeMat : goldMat
+      );
       rightPauldron.position.set(0, 0.04, 0);
       weaponPivot.add(rightPauldron);
 
-      const rightUpperArm = new THREE.Mesh(upperArmGeo, crimsonClothMat);
+      const rightUpperArm = new THREE.Mesh(
+        upperArmGeo,
+        isSiamak || isKaveh ? skinMat : crimsonClothMat
+      );
       weaponPivot.add(rightUpperArm);
 
       const rightForearmGroup = new THREE.Group();
@@ -530,37 +786,66 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       rightHand.position.set(0, -0.36, 0);
       rightForearmGroup.add(rightHand);
 
-      // Gorz-e Gavsar (Bull-Headed Mace) held in right hand
-      const maceGroup = new THREE.Group();
-      maceGroup.position.set(0, -0.36, 0.05);
-      maceGroup.rotation.x = Math.PI * 0.46;
+      const weaponGroup = new THREE.Group();
+      weaponGroup.position.set(0, -0.36, 0.05);
+      weaponGroup.rotation.x = Math.PI * 0.46;
 
-      const shaftGeo = new THREE.CylinderGeometry(0.038, 0.046, 1.55, 10);
+      const shaftGeo = new THREE.CylinderGeometry(0.038, 0.046, 1.58, 10);
       shaftGeo.translate(0, 0.62, 0);
       const shaft = new THREE.Mesh(shaftGeo, steelMat);
-      maceGroup.add(shaft);
+      weaponGroup.add(shaft);
 
-      // Flanged Bull-Head Mace Crown
-      const maceHeadGeo = new THREE.DodecahedronGeometry(0.21, 0);
-      const maceHead = new THREE.Mesh(maceHeadGeo, goldMat);
-      maceHead.position.set(0, 1.38, 0);
-      maceGroup.add(maceHead);
+      if (isKaveh) {
+        // Kaveh the Blacksmith's Heavy Iron Sledgehammer (`پتک آهنگری کاوه`)
+        const hammerHeadGeo = new THREE.BoxGeometry(0.52, 0.26, 0.28);
+        const hammerHead = new THREE.Mesh(hammerHeadGeo, bronzeMat);
+        hammerHead.position.set(0, 1.38, 0);
+        weaponGroup.add(hammerHead);
+      } else if (isSiamak || isSiyavash) {
+        // Royal Persian Shamshir Blade
+        const bladeGeo = new THREE.BoxGeometry(0.05, 1.45, 0.14);
+        bladeGeo.translate(0, 0.85, 0);
+        const blade = new THREE.Mesh(bladeGeo, steelMat);
+        weaponGroup.add(blade);
+      } else {
+        // Sculpted Gorz-e Gavsar (Bull-Headed Royal Mace — گرز گاوسار فریدون و رستم)
+        const maceHeadGeo = new THREE.DodecahedronGeometry(0.22, 0);
+        const maceHead = new THREE.Mesh(
+          maceHeadGeo,
+          isEvilAhriman
+            ? new THREE.MeshStandardMaterial({
+                color: 0x991b1b,
+                emissive: 0x7f1d1d,
+                metalness: 0.85,
+                roughness: 0.2,
+              })
+            : goldMat
+        );
+        maceHead.position.set(0, 1.38, 0);
+        weaponGroup.add(maceHead);
 
-      // Twin Bull Horns on Gorz-e Gavsar
-      const bullHornGeo = new THREE.ConeGeometry(0.055, 0.28, 8);
-      const leftBullHorn = new THREE.Mesh(bullHornGeo, steelMat);
-      leftBullHorn.position.set(-0.18, 1.48, 0.04);
-      leftBullHorn.rotation.z = 0.7;
-      const rightBullHorn = new THREE.Mesh(bullHornGeo, steelMat);
-      rightBullHorn.position.set(0.18, 1.48, 0.04);
-      rightBullHorn.rotation.z = -0.7;
-      maceGroup.add(leftBullHorn, rightBullHorn);
+        // Bovine Snout on Gorz-e Gavsar
+        const snoutGeo = new THREE.BoxGeometry(0.18, 0.16, 0.24);
+        const snout = new THREE.Mesh(snoutGeo, goldMat);
+        snout.position.set(0, 1.38, 0.14);
+        weaponGroup.add(snout);
 
-      rightForearmGroup.add(maceGroup);
+        // Twin Curved White-Steel Bull Horns on Gorz-e Gavsar
+        const bullHornGeo = new THREE.ConeGeometry(0.058, 0.34, 8);
+        const leftBullHorn = new THREE.Mesh(bullHornGeo, steelMat);
+        leftBullHorn.position.set(-0.2, 1.5, 0.04);
+        leftBullHorn.rotation.z = 0.68;
+        const rightBullHorn = new THREE.Mesh(bullHornGeo, steelMat);
+        rightBullHorn.position.set(0.2, 1.5, 0.04);
+        rightBullHorn.rotation.z = -0.68;
+        weaponGroup.add(leftBullHorn, rightBullHorn);
+      }
+
+      rightForearmGroup.add(weaponGroup);
       weaponPivot.add(rightForearmGroup);
       root.add(weaponPivot);
 
-      // Proportionate Neck, Head, Persian Royal Beard, Mustache & Kayanian Crown
+      // Proportionate Neck, Head, Epoch-Specific Facial Hair & Crown/Helmet
       const neckGeo = new THREE.CylinderGeometry(0.11, 0.13, 0.16, 10);
       const neck = new THREE.Mesh(neckGeo, skinMat);
       neck.position.set(0, 1.94, 0);
@@ -574,50 +859,91 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       head.scale.set(0.95, 1.08, 0.98);
       headGroup.add(head);
 
-      // Eyes & Dark Brows
       const eyeGeo = new THREE.SphereGeometry(0.028, 6, 6);
-      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+      const eyeMat = new THREE.MeshBasicMaterial({
+        color: isEvilAhriman ? 0xef4444 : 0x111827,
+      });
       const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
       leftEye.position.set(-0.075, 0.03, 0.195);
       const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
       rightEye.position.set(0.075, 0.03, 0.195);
       headGroup.add(leftEye, rightEye);
 
-      // Sculpted Persian Royal Beard & Mustache
+      // Facial Hair: Youthful clean-shaven for Siamak & Siyavash; Forked two-pronged beard for Rostam; Full Royal beard for Keyumars/Hushang/Fereydun/Kaveh
       const beardMat = new THREE.MeshStandardMaterial({
-        color: 0x18181b,
+        color: isKeyumars ? 0x374151 : 0x18181b,
         roughness: 0.82,
       });
-      const jawBeardGeo = new THREE.ConeGeometry(0.18, 0.34, 10);
-      const jawBeard = new THREE.Mesh(jawBeardGeo, beardMat);
-      jawBeard.rotation.x = Math.PI;
-      jawBeard.position.set(0, -0.14, 0.09);
-      headGroup.add(jawBeard);
+      if (isRostam) {
+        // Iconic Forked Beard of Rostam Dastan (`ریش دوشاخه تهمتن`)
+        const prongGeo = new THREE.ConeGeometry(0.11, 0.36, 8);
+        const leftProng = new THREE.Mesh(prongGeo, beardMat);
+        leftProng.rotation.x = Math.PI;
+        leftProng.rotation.z = -0.22;
+        leftProng.position.set(-0.08, -0.16, 0.1);
+        const rightProng = new THREE.Mesh(prongGeo, beardMat);
+        rightProng.rotation.x = Math.PI;
+        rightProng.rotation.z = 0.22;
+        rightProng.position.set(0.08, -0.16, 0.1);
+        headGroup.add(leftProng, rightProng);
+      } else if (!isSiamak && !isSiyavash) {
+        const jawBeardGeo = new THREE.ConeGeometry(0.18, 0.34, 10);
+        const jawBeard = new THREE.Mesh(jawBeardGeo, beardMat);
+        jawBeard.rotation.x = Math.PI;
+        jawBeard.position.set(0, -0.14, 0.09);
+        headGroup.add(jawBeard);
+      }
 
-      // Spired Kayanian Helmet-Crown (Kolah-Khod & Taj)
-      const crownRimGeo = new THREE.CylinderGeometry(0.235, 0.22, 0.18, 14);
+      // Epoch-Specific Crown or Helmet:
+      const crownRimGeo = new THREE.CylinderGeometry(0.235, 0.22, 0.16, 14);
       const crownRim = new THREE.Mesh(crownRimGeo, goldMat);
-      crownRim.position.set(0, 0.17, 0);
+      crownRim.position.set(0, 0.16, 0);
       headGroup.add(crownRim);
 
-      const helmDomeGeo = new THREE.SphereGeometry(0.215, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
-      const helmDome = new THREE.Mesh(helmDomeGeo, lapisArmorMat);
-      helmDome.position.set(0, 0.18, 0);
-      headGroup.add(helmDome);
+      if (isRostam) {
+        // Rostam's Leopard/Div-e Sepid Helmet + Tall Crimson Plume (`کلاهخود تهمتن با پر سرخ`)
+        const helmDomeGeo = new THREE.SphereGeometry(0.225, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6);
+        const helmDome = new THREE.Mesh(
+          helmDomeGeo,
+          new THREE.MeshStandardMaterial({ map: leopardPeltTex, roughness: 0.5 })
+        );
+        helmDome.position.set(0, 0.18, 0);
+        headGroup.add(helmDome);
 
-      const spireGeo = new THREE.ConeGeometry(0.04, 0.22, 8);
-      const spire = new THREE.Mesh(spireGeo, goldMat);
-      spire.position.set(0, 0.44, 0);
-      headGroup.add(spire);
+        // Tall Crimson Plume
+        const plumeGeo = new THREE.ConeGeometry(0.07, 0.38, 8);
+        const plumeMat = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
+        const plume = new THREE.Mesh(plumeGeo, plumeMat);
+        plume.position.set(0, 0.48, -0.04);
+        plume.rotation.x = -0.25;
+        headGroup.add(plume);
+      } else if (!isKaveh) {
+        const helmDomeGeo = new THREE.SphereGeometry(0.215, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
+        const helmDome = new THREE.Mesh(
+          helmDomeGeo,
+          isKeyumars
+            ? new THREE.MeshStandardMaterial({ map: leopardPeltTex })
+            : isSiyavash
+            ? goldMat
+            : torsoMat
+        );
+        helmDome.position.set(0, 0.18, 0);
+        headGroup.add(helmDome);
+
+        const spireGeo = new THREE.ConeGeometry(0.04, 0.22, 8);
+        const spire = new THREE.Mesh(spireGeo, goldMat);
+        spire.position.set(0, 0.44, 0);
+        headGroup.add(spire);
+      }
 
       root.add(headGroup);
 
-      // Subtle Halo of Royal Farr behind shoulders
-      const haloGeo = new THREE.TorusGeometry(0.58, 0.028, 8, 28);
+      // Halo of Royal Farr (Gold/Azure for Good Asha, Crimson/Flame for Evil Ahriman)
+      const haloGeo = new THREE.TorusGeometry(0.58, 0.03, 8, 28);
       const haloMat = new THREE.MeshStandardMaterial({
-        color: 0xfde68a,
-        emissive: 0xd97706,
-        emissiveIntensity: 0.85,
+        color: isEvilAhriman ? 0xef4444 : 0xfde68a,
+        emissive: isEvilAhriman ? 0x991b1b : 0xd97706,
+        emissiveIntensity: 0.95,
         roughness: 0.2,
         metalness: 0.9,
       });
@@ -636,7 +962,10 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       };
     };
 
-    const heroModel = buildPersianHeroGroup();
+    let heroModel = buildPersianHeroGroup(
+      runStateRef.current.epochIndex,
+      runStateRef.current.alignment
+    );
     scene.add(heroModel.root);
 
     // 7. 4 Corner Sadeh Fire Braziers
@@ -693,7 +1022,9 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     });
 
     // =========================================================================
-    // 8. ANATOMICALLY PROPORTIONATE, ARTICULATED DIV & TYRANT ENEMY 3D RIG
+    // 8. EPOCH-SPECIFIC BOSS & ENEMY 3D BUILDER
+    //    (Div-e Siah, Zahhak w/ Twin Serpents, Div-e Sepid w/ Millstone,
+    //     Sohrab w/ Tahmineh Armlet, Afrasiab, Esfandiyar Ruin-Tan, Shaghad w/ Plane Tree)
     // =========================================================================
     const buildDivEnemyGroup = (
       archetype: EnemyArchetype,
@@ -701,7 +1032,24 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       epochIdx: number
     ) => {
       const group = new THREE.Group();
-      const scale = isBoss ? 1.32 : archetype === 'poulad_charger' ? 1.12 : 0.96;
+
+      const isDivSepid = isBoss && epochIdx === 6;
+      const isZahhak = isBoss && (epochIdx === 4 || epochIdx === 5);
+      const isSohrab = isBoss && epochIdx === 7;
+      const isAfrasiab = isBoss && epochIdx === 8;
+      const isEsfandiyar = isBoss && epochIdx === 9;
+      const isShaghad = isBoss && epochIdx === 10;
+      const isHumanChampionBoss = isZahhak || isSohrab || isAfrasiab || isEsfandiyar || isShaghad;
+
+      const scale = isDivSepid
+        ? 1.44
+        : isBoss
+        ? isSohrab
+          ? 1.14
+          : 1.28
+        : archetype === 'poulad_charger'
+        ? 1.12
+        : 0.96;
 
       // Contact Shadow
       const shadow = new THREE.Mesh(contactShadowGeo, contactShadowMat);
@@ -709,120 +1057,168 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       shadow.position.y = 0.02;
       group.add(shadow);
 
-      // Epoch-specific Boss Visual Theme (Div-e Siah, Zahhak, Div-e Sepid, Afrasiab, Esfandiyar Ruin-Tan, Shaghad, Finale)
-      const isDivSepid = isBoss && epochIdx === 6;
-      const isZahhak = isBoss && (epochIdx === 4 || epochIdx === 5);
-      const isEsfandiyar = isBoss && epochIdx === 9;
-      const isAfrasiabOrShaghad = isBoss && (epochIdx === 7 || epochIdx === 8 || epochIdx === 10);
-
       const skinColor = isDivSepid
-        ? 0xe2e8f0 // Snow-White Demon of Mazandaran
+        ? 0xf1f5f9 // Snow-White furred Div-e Sepid (`دیو سفید مازندران`)
         : isEsfandiyar
-        ? 0xd97706 // Brazen-Bodied (Ruin-Tan) Gleaming Bronze-Gold Invulnerable Skin/Plate
-        : isZahhak
-        ? 0x3f2e21 // Tyrant Biwarasp Zahhak
-        : isAfrasiabOrShaghad
-        ? 0x7f1d1d // Turanian / Kabul Warlord Crimson Mail
+        ? 0xf59e0b // Brazen-Bodied (`اسفندیار روئین‌تن` — gleaming invulnerable bronze-gold)
+        : isHumanChampionBoss
+        ? 0xe2b086 // Human skin for Sohrab, Zahhak, Afrasiab, Shaghad
         : archetype === 'div_siah_boss'
         ? 0x18181b // Pitch-black Div-e Siah
         : archetype === 'poulad_charger'
-        ? 0x7f1d1d // Iron-blood Poulad Div
+        ? 0x7f1d1d
         : archetype === 'jadu_kiter'
-        ? 0x4c1d95 // Violet-robed Jadu Sorcerer
-        : 0x451a14; // Gurg-Div Beastman
+        ? 0x4c1d95
+        : 0x451a14;
 
       const armorColor = isDivSepid
-        ? 0x475569
+        ? 0x64748b
         : isEsfandiyar
-        ? 0xf59e0b
+        ? 0xd97706 // Mirror-polished golden-bronze cuirass
+        : isSohrab
+        ? 0x0d9488 // Turquoise-and-crimson mail of young Sohrab
+        : isAfrasiab
+        ? 0x18181b // Black-and-gold Turanian Imperial mail
+        : isShaghad
+        ? 0x14532d // Kabul dark-emerald ambush mail
         : isZahhak
-        ? 0x991b1b
+        ? 0x7f1d1d // Serpent-King crimson robe
         : archetype === 'jadu_kiter'
         ? 0x3b0764
         : 0x27272a;
 
       const skinMat = new THREE.MeshPhysicalMaterial({
         color: skinColor,
-        roughness: 0.45,
-        metalness: 0.25,
-        clearcoat: 0.35,
+        roughness: isEsfandiyar ? 0.18 : 0.45,
+        metalness: isEsfandiyar ? 0.92 : 0.2,
+        clearcoat: 0.4,
       });
-      const armorMat = new THREE.MeshStandardMaterial({
+      const armorMat = new THREE.MeshPhysicalMaterial({
         color: armorColor,
-        roughness: 0.4,
-        metalness: 0.75,
+        roughness: isEsfandiyar ? 0.15 : 0.38,
+        metalness: isEsfandiyar ? 0.95 : 0.72,
+        clearcoat: 0.5,
       });
-      const hornMat = new THREE.MeshStandardMaterial({
-        color: isDivSepid ? 0x94a3b8 : 0xd97706,
-        roughness: 0.3,
-        metalness: 0.8,
+      const goldTrimMat = new THREE.MeshStandardMaterial({
+        color: 0xf59e0b,
+        roughness: 0.22,
+        metalness: 0.9,
       });
 
-      // Articulated Bipedal Demon Legs
-      const createDemonLeg = (offsetX: number) => {
+      // Articulated Legs
+      const createLeg = (offsetX: number) => {
         const legGroup = new THREE.Group();
         legGroup.position.set(offsetX * scale, 0.88 * scale, 0);
 
         const thighGeo = new THREE.CylinderGeometry(0.16 * scale, 0.13 * scale, 0.44 * scale, 9);
         thighGeo.translate(0, -0.22 * scale, 0);
-        const thigh = new THREE.Mesh(thighGeo, skinMat);
+        const thigh = new THREE.Mesh(
+          thighGeo,
+          isHumanChampionBoss ? armorMat : skinMat
+        );
         legGroup.add(thigh);
 
         const shinGeo = new THREE.CylinderGeometry(0.13 * scale, 0.095 * scale, 0.44 * scale, 9);
         shinGeo.translate(0, -0.64 * scale, 0);
-        const shin = new THREE.Mesh(shinGeo, armorMat);
+        const shin = new THREE.Mesh(shinGeo, isEsfandiyar ? goldTrimMat : armorMat);
         legGroup.add(shin);
 
-        const hoofGeo = new THREE.BoxGeometry(0.22 * scale, 0.13 * scale, 0.32 * scale);
-        const hoof = new THREE.Mesh(hoofGeo, armorMat);
-        hoof.position.set(0, -0.84 * scale, 0.04 * scale);
-        legGroup.add(hoof);
+        const bootGeo = new THREE.BoxGeometry(0.22 * scale, 0.13 * scale, 0.32 * scale);
+        const boot = new THREE.Mesh(bootGeo, armorMat);
+        boot.position.set(0, -0.84 * scale, 0.04 * scale);
+        legGroup.add(boot);
 
         return legGroup;
       };
 
-      const leftLegGroup = createDemonLeg(-0.22);
-      const rightLegGroup = createDemonLeg(0.22);
+      const leftLegGroup = createLeg(-0.22);
+      const rightLegGroup = createLeg(0.22);
       group.add(leftLegGroup, rightLegGroup);
 
-      // Armored Waist / Loincloth
+      // Armored Waist / Pelvis
       const pelvisGeo = new THREE.CylinderGeometry(0.35 * scale, 0.32 * scale, 0.28 * scale, 10);
       const pelvis = new THREE.Mesh(pelvisGeo, armorMat);
       pelvis.position.set(0, 0.94 * scale, 0);
       group.add(pelvis);
 
-      // Muscular V-Tapered Demon Torso
+      // Muscular V-Tapered Torso (Armor Cuirass for Human Bosses, Demon Pelt for Divs)
       const torsoGeo = new THREE.CylinderGeometry(0.48 * scale, 0.33 * scale, 0.82 * scale, 10);
-      const torso = new THREE.Mesh(torsoGeo, skinMat);
+      const torso = new THREE.Mesh(
+        torsoGeo,
+        isHumanChampionBoss ? armorMat : skinMat
+      );
       torso.scale.set(1.12, 1.0, 0.8);
       torso.position.set(0, 1.45 * scale, 0);
       torso.castShadow = !isSoftwareGl;
       group.add(torso);
 
-      // If Zahhak Boss: Twin Black Serpents rising from shoulders!
+      // SPECIAL FEATURE 1: ZAHHAK'S TWIN SHOULDER SERPENTS (`دو مار سیاه بر شانه ضحاک ماردوش`)
       if (isZahhak) {
         const serpentMat = new THREE.MeshStandardMaterial({
           color: 0x09090b,
-          roughness: 0.25,
-          metalness: 0.6,
+          roughness: 0.22,
+          metalness: 0.65,
         });
+        const redEyeMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
         [-1, 1].forEach((side) => {
-          const sCurve = new THREE.TorusGeometry(0.22 * scale, 0.055 * scale, 8, 14, Math.PI * 1.15);
-          const sMesh = new THREE.Mesh(sCurve, serpentMat);
-          sMesh.position.set(side * 0.48 * scale, 1.98 * scale, 0.08 * scale);
-          sMesh.rotation.y = side * 0.4;
-          group.add(sMesh);
+          const serpentGroup = new THREE.Group();
+          serpentGroup.position.set(side * 0.46 * scale, 1.84 * scale, 0.06 * scale);
+
+          const neckCoilGeo = new THREE.TorusGeometry(
+            0.24 * scale,
+            0.065 * scale,
+            8,
+            16,
+            Math.PI * 1.25
+          );
+          const neckCoil = new THREE.Mesh(neckCoilGeo, serpentMat);
+          neckCoil.rotation.y = side * 0.35;
+          serpentGroup.add(neckCoil);
+
+          // Sculpted Snake Head with Fangs & Glowing Eyes
+          const snakeHeadGeo = new THREE.ConeGeometry(0.095 * scale, 0.24 * scale, 8);
+          snakeHeadGeo.rotateX(Math.PI / 2);
+          const snakeHead = new THREE.Mesh(snakeHeadGeo, serpentMat);
+          snakeHead.position.set(side * 0.14 * scale, 0.24 * scale, 0.22 * scale);
+          serpentGroup.add(snakeHead);
+
+          const sEye = new THREE.Mesh(new THREE.SphereGeometry(0.028 * scale, 6, 6), redEyeMat);
+          sEye.position.set(side * 0.14 * scale, 0.28 * scale, 0.28 * scale);
+          serpentGroup.add(sEye);
+
+          group.add(serpentGroup);
         });
       }
 
-      // Exposed Crimson Neck Stump (revealed only after decapitation)
+      // SPECIAL FEATURE 2: SHAGHAD'S HOLLOW PLANE TREE (`درخت چنار چاه شغاد`)
+      if (isShaghad) {
+        const trunkGeo = new THREE.CylinderGeometry(0.32, 0.42, 2.6, 10);
+        const trunkMat = new THREE.MeshStandardMaterial({
+          color: 0x452615,
+          roughness: 0.9,
+        });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.set(-0.65 * scale, 1.3, -0.45 * scale);
+        group.add(trunk);
+
+        const canopyGeo = new THREE.DodecahedronGeometry(0.75, 1);
+        const canopyMat = new THREE.MeshStandardMaterial({
+          color: 0x166534,
+          roughness: 0.8,
+        });
+        const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+        canopy.position.set(-0.65 * scale, 2.8, -0.45 * scale);
+        group.add(canopy);
+      }
+
+      // Exposed Crimson Neck Stump (revealed upon decapitation)
       const neckGoreGeo = new THREE.CylinderGeometry(0.12 * scale, 0.15 * scale, 0.14 * scale, 10);
       const neckGoreMat = new THREE.MeshBasicMaterial({ color: 0x881313 });
       const neckGoreMesh = new THREE.Mesh(neckGoreGeo, neckGoreMat);
       neckGoreMesh.position.set(0, 1.9 * scale, 0);
       group.add(neckGoreMesh);
 
-      // Proportionate Detachable Demon Head + Sculpted Brow + Jaw + Curved Horns
+      // Detachable Head Group
       const headGroup = new THREE.Group();
       headGroup.position.set(0, 2.08 * scale, 0);
 
@@ -831,26 +1227,74 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       skull.scale.set(0.96, 1.08, 1.02);
       headGroup.add(skull);
 
-      // Lower Fang Jaw
-      const jawGeo = new THREE.BoxGeometry(0.24 * scale, 0.14 * scale, 0.24 * scale);
-      const jaw = new THREE.Mesh(jawGeo, skinMat);
-      jaw.position.set(0, -0.14 * scale, 0.06 * scale);
-      headGroup.add(jaw);
+      if (isHumanChampionBoss) {
+        // Human Boss Crown / Helmet (No demon horns!)
+        const crownGeo = new THREE.CylinderGeometry(0.24 * scale, 0.22 * scale, 0.2 * scale, 14);
+        const crown = new THREE.Mesh(crownGeo, goldTrimMat);
+        crown.position.set(0, 0.18 * scale, 0);
+        headGroup.add(crown);
 
-      // Curved Ram/Demon Horns (2 segments per horn for natural curve)
-      [-1, 1].forEach((side) => {
-        const hornBaseGeo = new THREE.ConeGeometry(0.065 * scale, 0.34 * scale, 8);
-        const hornBase = new THREE.Mesh(hornBaseGeo, hornMat);
-        hornBase.position.set(side * 0.19 * scale, 0.2 * scale, -0.02 * scale);
-        hornBase.rotation.z = -side * 0.55;
-        hornBase.rotation.x = 0.25;
-        headGroup.add(hornBase);
-      });
+        if (isSohrab) {
+          // Young Sohrab: Conical Helmet + White Plume (No Beard!)
+          const coneHelmGeo = new THREE.ConeGeometry(0.22 * scale, 0.32 * scale, 12);
+          const coneHelm = new THREE.Mesh(coneHelmGeo, armorMat);
+          coneHelm.position.set(0, 0.34 * scale, 0);
+          headGroup.add(coneHelm);
+        } else if (isEsfandiyar) {
+          // Esfandiyar Ruin-Tan: Golden Winged Kayanian Helmet
+          const domeGeo = new THREE.SphereGeometry(0.23 * scale, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6);
+          const dome = new THREE.Mesh(domeGeo, goldTrimMat);
+          dome.position.set(0, 0.2 * scale, 0);
+          headGroup.add(dome);
+        } else {
+          // Dark Beard for Zahhak / Afrasiab / Shaghad
+          const bGeo = new THREE.ConeGeometry(0.18 * scale, 0.32 * scale, 8);
+          const bMesh = new THREE.Mesh(
+            bGeo,
+            new THREE.MeshStandardMaterial({ color: 0x18181b })
+          );
+          bMesh.rotation.x = Math.PI;
+          bMesh.position.set(0, -0.15 * scale, 0.08 * scale);
+          headGroup.add(bMesh);
+        }
+      } else {
+        // Demon Jaw, Fangs & Curved Horns (for Div-e Siah, Div-e Sepid & Minions)
+        const jawGeo = new THREE.BoxGeometry(0.24 * scale, 0.14 * scale, 0.24 * scale);
+        const jaw = new THREE.Mesh(jawGeo, skinMat);
+        jaw.position.set(0, -0.14 * scale, 0.06 * scale);
+        headGroup.add(jaw);
 
-      // Glowing Eyes
-      const eyeGeo = new THREE.SphereGeometry(0.036 * scale, 8, 8);
+        // White Mane for Div-e Sepid
+        if (isDivSepid) {
+          const maneGeo = new THREE.DodecahedronGeometry(0.32 * scale, 1);
+          const mane = new THREE.Mesh(maneGeo, skinMat);
+          mane.position.set(0, 0.04 * scale, -0.08 * scale);
+          headGroup.add(mane);
+        }
+
+        [-1, 1].forEach((side) => {
+          const hornBaseGeo = new THREE.ConeGeometry(0.068 * scale, 0.38 * scale, 8);
+          const hornBase = new THREE.Mesh(
+            hornBaseGeo,
+            isDivSepid
+              ? new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 })
+              : goldTrimMat
+          );
+          hornBase.position.set(side * 0.19 * scale, 0.22 * scale, -0.02 * scale);
+          hornBase.rotation.z = -side * 0.55;
+          hornBase.rotation.x = 0.25;
+          headGroup.add(hornBase);
+        });
+      }
+
+      // Eyes
+      const eyeGeo = new THREE.SphereGeometry(0.035 * scale, 8, 8);
       const eyeMat = new THREE.MeshBasicMaterial({
-        color: isDivSepid ? 0x38bdf8 : 0xef4444,
+        color: isDivSepid
+          ? 0x38bdf8
+          : isSohrab || isEsfandiyar
+          ? 0x1e293b
+          : 0xef4444,
       });
       const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
       leftEye.position.set(-0.085 * scale, 0.04 * scale, 0.21 * scale);
@@ -860,7 +1304,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
 
       group.add(headGroup);
 
-      // Articulated Left Claw/Buckler Arm
+      // Articulated Left Arm
       const leftArmGroup = new THREE.Group();
       leftArmGroup.position.set(-0.55 * scale, 1.72 * scale, 0);
 
@@ -871,7 +1315,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       leftArmGroup.add(leftArmMesh);
       group.add(leftArmGroup);
 
-      // Articulated Right Weapon Arm + Spiked Iron War-Club / Cleaver
+      // Articulated Right Weapon Arm + Boss-Specific Weapon
       const weaponArmGroup = new THREE.Group();
       weaponArmGroup.position.set(0.55 * scale, 1.72 * scale, 0);
 
@@ -879,10 +1323,24 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       rightArmMesh.rotation.x = -0.5;
       weaponArmGroup.add(rightArmMesh);
 
+      // SPECIAL FEATURE 3: SOHRAB'S GLOWING ARMBAND OF TAHMINEH (`مهره بازوبند سهراب`)
+      if (isSohrab) {
+        const armletGeo = new THREE.TorusGeometry(0.135 * scale, 0.035 * scale, 8, 16);
+        const armletMat = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x0284c7,
+          emissiveIntensity: 1.2,
+        });
+        const armlet = new THREE.Mesh(armletGeo, armletMat);
+        armlet.position.set(0, -0.18 * scale, 0.04 * scale);
+        armlet.rotation.x = Math.PI / 2;
+        weaponArmGroup.add(armlet);
+      }
+
       const handleGeo = new THREE.CylinderGeometry(0.04 * scale, 0.05 * scale, 1.15 * scale, 8);
       handleGeo.rotateX(Math.PI / 2);
       const clubMat = new THREE.MeshStandardMaterial({
-        color: isDivSepid ? 0x64748b : 0x7f1d1d,
+        color: isDivSepid ? 0x64748b : isEsfandiyar ? 0xf59e0b : 0x7f1d1d,
         roughness: 0.35,
         metalness: 0.82,
       });
@@ -890,10 +1348,26 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       clubShaft.position.set(0, -0.45 * scale, 0.45 * scale);
       weaponArmGroup.add(clubShaft);
 
-      const clubHeadGeo = new THREE.DodecahedronGeometry(0.19 * scale, 0);
-      const clubHead = new THREE.Mesh(clubHeadGeo, armorMat);
-      clubHead.position.set(0, -0.45 * scale, 0.98 * scale);
-      weaponArmGroup.add(clubHead);
+      if (isDivSepid) {
+        // Div-e Sepid wields a massive circular Stone Millstone (`سنگ آسیاب دیو سفید`)!
+        const millstoneGeo = new THREE.CylinderGeometry(0.42 * scale, 0.42 * scale, 0.18 * scale, 16);
+        millstoneGeo.rotateZ(Math.PI / 2);
+        const millstoneMat = new THREE.MeshStandardMaterial({
+          color: 0x94a3b8,
+          roughness: 0.85,
+        });
+        const millstone = new THREE.Mesh(millstoneGeo, millstoneMat);
+        millstone.position.set(0, -0.45 * scale, 0.98 * scale);
+        weaponArmGroup.add(millstone);
+      } else {
+        const clubHeadGeo = new THREE.DodecahedronGeometry(0.19 * scale, 0);
+        const clubHead = new THREE.Mesh(
+          clubHeadGeo,
+          isEsfandiyar ? goldTrimMat : armorMat
+        );
+        clubHead.position.set(0, -0.45 * scale, 0.98 * scale);
+        weaponArmGroup.add(clubHead);
+      }
 
       group.add(weaponArmGroup);
 
@@ -943,7 +1417,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     const projectiles: Projectile3D[] = [];
     const enemies: Enemy3DEntity[] = [];
 
-    // Fine, anatomically scaled droplet geometry (radius 0.028m, stretched along velocity vector)
     const dropGeo = new THREE.SphereGeometry(0.028, 6, 6);
     const bloodPoolGeo = new THREE.PlaneGeometry(1.35, 1.35);
     bloodPoolGeo.rotateX(-Math.PI / 2);
@@ -955,7 +1428,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       const ctx = c.getContext('2d')!;
       ctx.clearRect(0, 0, 256, 256);
 
-      // Coagulated dark arterial center with organic irregular edges
       const grad = ctx.createRadialGradient(128, 128, 8, 128, 128, 92);
       grad.addColorStop(0, 'rgba(38, 4, 4, 0.92)');
       grad.addColorStop(0.5, 'rgba(98, 11, 11, 0.84)');
@@ -966,7 +1438,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       ctx.arc(128, 128, 92, 0, Math.PI * 2);
       ctx.fill();
 
-      // Directional arterial streaks & fine satellite droplets
       for (let i = 0; i < 18; i++) {
         const ang = (i / 18) * Math.PI * 2 + (i % 3) * 0.22;
         const dist = 54 + (i % 5) * 11;
@@ -1013,7 +1484,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       mesh.scale.setScalar(0.08);
       scene.add(mesh);
 
-      // Keep floor splatters anatomically proportionate (0.32m - 0.95m)
       const clampedScale = Math.min(
         1.15,
         radius * Math.min(1.25, Math.max(0.55, settingsRef.current.goreIntensityMultiplier * 0.65))
@@ -1025,10 +1495,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       });
     };
 
-    /**
-     * Spawns a directional cone of fine, velocity-aligned arterial blood droplets
-     * from the exact wound point along the weapon cleave direction (dirX, dirZ).
-     */
     const spawnArterialSpray = (
       x: number,
       y: number,
@@ -1046,7 +1512,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       );
 
       const baseAngle = Math.atan2(dirZ, dirX);
-      const coneSpread = isFatalGore ? 1.15 : 0.72; // Directional spray cone
+      const coneSpread = isFatalGore ? 1.15 : 0.72;
 
       for (let i = 0; i < count; i++) {
         const angle = baseAngle + (Math.random() - 0.5) * coneSpread;
@@ -1081,7 +1547,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     };
 
     const spawnDismemberedGibs = (enemy: Enemy3DEntity, strikeDirX = 1, strikeDirZ = 0) => {
-      // Collapse torso onto the arena floor
       enemy.headGroup.visible = false;
       enemy.weaponArmGroup.visible = false;
       enemy.hpBarMesh.visible = false;
@@ -1093,7 +1558,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         return;
       }
 
-      // Detach demon head and launch it along the weapon cleave vector
       const severedHead = enemy.headGroup.clone();
       severedHead.visible = true;
       severedHead.position.set(enemy.x, 1.95, enemy.z);
@@ -1113,7 +1577,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         bounces: 0,
       });
 
-      // Detach demon weapon arm
       const severedArm = enemy.weaponArmGroup.clone();
       severedArm.visible = true;
       severedArm.position.set(enemy.x, 1.45, enemy.z);
@@ -1134,9 +1597,9 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       });
     };
 
-    // Player & Arena State
-    let playerX = -1.8;
-    let playerZ = 0.4;
+    // Player, Stage Wave & 1v1 Good-vs-Evil Boss Duel State
+    let playerX = -2.0;
+    let playerZ = 0.2;
     let facingAngle = Math.PI / 2;
     let playerWalkCycle = 0;
     let dashTimer = 0;
@@ -1148,21 +1611,35 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
     let hitstopTimer = 0;
     let nextEnemyId = 1;
     let killsInEpoch = 0;
-    const targetKillsPerEpoch = 10;
-    let bossSpawned = false;
+    const vanguardKillsBeforeBossCrossroads = 4;
+    let crossroadsPromptedForEpoch = false;
+    let isDuelBossFight = false;
     let currentEpochTracked = runStateRef.current.epochIndex;
+    let currentAlignmentTracked = runStateRef.current.alignment;
 
     const keysDown = new Set<string>();
 
     const getEpochBossTitle = (epochIdx: number): string => {
+      if (epochIdx === 0) return 'طلایه دیو سیاه (Vanguard of Div-e Siah)';
+      if (epochIdx === 1 || epochIdx === 2) return 'دیو سیاه مازندران (Div-e Siah)';
+      if (epochIdx === 3) return 'ارژنگ دیو جادو (Arzhang Div)';
       if (epochIdx === 4 || epochIdx === 5) return 'ضحاک ماردوش (Biwarasp Zahhak)';
       if (epochIdx === 6) return 'دیو سفید مازندران (Div-e Sepid)';
-      if (epochIdx === 7) return 'پهلوان زره‌پوش توران (Turanian Vanguard)';
+      if (epochIdx === 7) return 'سهراب یل (Young Champion Sohrab)';
       if (epochIdx === 8) return 'افراسیاب شاه توران (Afrasiab of Turan)';
       if (epochIdx === 9) return 'اسفندیار روئین‌تن (Esfandiyar the Brazen-Bodied)';
-      if (epochIdx === 10) return 'شغاد پیمان‌شکن و شاه کابل (Shaghad of Kabul)';
-      if (epochIdx >= 11) return 'سپاه اهریمن در واپسین نبرد (Final Host of Ahriman)';
-      return 'دیو سیاه مازندران (Div-e Siah)';
+      if (epochIdx === 10) return 'شغاد پیمان‌شکن در چنار (Shaghad of Kabul)';
+      return 'آواتار اهریمن در واپسین نبرد (Avatar of Ahriman)';
+    };
+
+    const rebuildHeroMeshForEpoch = () => {
+      scene.remove(heroModel.root);
+      heroModel = buildPersianHeroGroup(
+        runStateRef.current.epochIndex,
+        runStateRef.current.alignment
+      );
+      heroModel.root.position.set(playerX, 0, playerZ);
+      scene.add(heroModel.root);
     };
 
     const spawnEnemy3D = (archetype: EnemyArchetype, x: number, z: number) => {
@@ -1174,10 +1651,10 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
 
       const diffScale = settingsRef.current.enemyAggressionScale;
       const maxHp = isBoss
-        ? Math.round(240 * diffScale)
+        ? Math.round(280 * diffScale)
         : archetype === 'poulad_charger'
-        ? Math.round(95 * diffScale)
-        : Math.round(65 * diffScale);
+        ? Math.round(90 * diffScale)
+        : Math.round(62 * diffScale);
 
       enemies.push({
         id: nextEnemyId++,
@@ -1196,14 +1673,14 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         hp: maxHp,
         maxHp,
         posture: 0,
-        maxPosture: isBoss ? 140 : 75,
+        maxPosture: isBoss ? 150 : 75,
         radius: isBoss ? 1.55 : 1.05,
-        speed: (isBoss ? 4.4 : archetype === 'gurg_swarmer' ? 6.0 : 4.7) * diffScale,
+        speed: (isBoss ? 4.6 : archetype === 'gurg_swarmer' ? 5.9 : 4.6) * diffScale,
         damage: Math.round((isBoss ? 22 : 13) * diffScale),
         state: 'seeking',
         stateTimer: 0,
-        telegraphDuration: isBoss ? 0.65 : 0.55,
-        attackCooldown: 0.8,
+        telegraphDuration: isBoss ? 0.62 : 0.55,
+        attackCooldown: 0.75,
         hitFlashTimer: 0,
         phaseOffset: Math.random() * Math.PI * 2,
         walkCycle: Math.random() * Math.PI * 2,
@@ -1218,6 +1695,42 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       });
     };
 
+    /**
+     * Transitions the arena directly into a pure 1v1 Two-Person Good vs. Evil Boss Fight!
+     * Clears all minions, places Hero on the left and Epoch Boss on the right inside the Ring of Fire.
+     */
+    const enterOneOnOneBossDuel = () => {
+      currentEpochTracked = runStateRef.current.epochIndex;
+      currentAlignmentTracked = runStateRef.current.alignment;
+
+      enemies.forEach((e) => scene.remove(e.group));
+      enemies.length = 0;
+      projectiles.forEach((p) => scene.remove(p.mesh));
+      projectiles.length = 0;
+
+      isDuelBossFight = true;
+      crossroadsPromptedForEpoch = true;
+      playerX = -2.2;
+      playerZ = 0.0;
+      facingAngle = Math.PI / 2;
+
+      rebuildHeroMeshForEpoch();
+
+      // Ignite all 4 Sadeh Braziers and the central 1v1 Duel Ring
+      braziers3D.forEach((b) => {
+        b.ignited = true;
+        (b.flameMesh.material as THREE.MeshBasicMaterial).opacity = 0.95;
+        b.light.intensity = 3.8;
+      });
+      duelRingMat.color.setHex(
+        runStateRef.current.alignment < 0 ? 0xdc2626 : 0xf59e0b
+      );
+      duelRingMat.opacity = 0.85;
+
+      // Spawn ONLY the Epoch's Iconic Boss for a pure 1v1 Two-Person Duel!
+      spawnEnemy3D('div_siah_boss', 2.2, 0.0);
+    };
+
     const resetWaveForEpoch = () => {
       enemies.forEach((e) => scene.remove(e.group));
       enemies.length = 0;
@@ -1226,10 +1739,15 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       bloodPools.forEach((b) => scene.remove(b.mesh));
       bloodPools.length = 0;
       killsInEpoch = 0;
-      bossSpawned = false;
-      playerX = -1.8;
-      playerZ = 0.4;
+      crossroadsPromptedForEpoch = false;
+      isDuelBossFight = false;
+      duelRingMat.opacity = 0.0;
+      playerX = -2.0;
+      playerZ = 0.2;
       facingAngle = Math.PI / 2;
+
+      rebuildHeroMeshForEpoch();
+
       braziers3D.forEach((b) => {
         const startLit = b.z < 0;
         b.ignited = startLit;
@@ -1237,20 +1755,18 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         b.light.intensity = startLit ? 3.4 : 0;
       });
 
-      // Subtle, realistic initial battle scars in center ring
-      spawnBloodPool(0.8, 0.2, 0.55, 0.4);
-      spawnBloodPool(2.1, -0.9, 0.48, 1.2);
+      spawnBloodPool(0.8, 0.2, 0.48, 0.4);
+      spawnBloodPool(2.0, -0.8, 0.42, 1.2);
 
-      // Spawn Div horde in center melee range
-      spawnEnemy3D('gurg_swarmer', 1.2, 0.2);
-      spawnEnemy3D('poulad_charger', 2.5, -1.2);
-      spawnEnemy3D('gurg_swarmer', 0.4, -1.6);
-      spawnEnemy3D('div_siah_boss', 3.4, 0.8);
+      // Spawn vanguard wave; the Boss appears in the 1v1 Duel at the end of the stage!
+      spawnEnemy3D('gurg_swarmer', 1.2, 0.3);
+      spawnEnemy3D('poulad_charger', 2.4, -1.1);
+      spawnEnemy3D('jadu_kiter', 3.0, 0.6);
     };
 
     resetWaveForEpoch();
 
-    // Perform Primary Mace Cleave [Space / J]
+    // Perform Primary Mace / Weapon Cleave [Space / J]
     const triggerMaceStrike = (isHeavyMythic = false) => {
       if (attackAnimTimer > 0.05) return;
       attackAnimTimer = isHeavyMythic ? 0.36 : 0.24;
@@ -1269,7 +1785,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         braziersLit
       );
 
-      const reach = isHeavyMythic ? 6.2 : 4.1;
+      const reach = isHeavyMythic ? 6.2 : 4.2;
       let hitAny = false;
 
       enemies.forEach((enemy) => {
@@ -1286,10 +1802,10 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
           const dirX = dx / dist;
           const dirZ = dz / dist;
           const pushAngle = Math.atan2(dz, dx);
-          enemy.x = Math.max(-17.5, Math.min(17.5, enemy.x + dirX * 1.25));
-          enemy.z = Math.max(-11.5, Math.min(11.5, enemy.z + dirZ * 1.25));
+          const maxArenaR = isDuelBossFight ? 5.2 : 16.5;
+          enemy.x = Math.max(-maxArenaR, Math.min(maxArenaR, enemy.x + dirX * 1.15));
+          enemy.z = Math.max(-maxArenaR, Math.min(maxArenaR, enemy.z + dirZ * 1.15));
 
-          // Directional arterial spray along weapon cleave vector + proportionate floor splatter
           const isFatal = enemy.hp <= 0;
           spawnArterialSpray(
             enemy.x,
@@ -1322,9 +1838,16 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
               ...prev,
               hp: Math.min(prev.maxHp, prev.hp + prev.lifestealOnKill),
               mythicEnergy: Math.min(100, prev.mythicEnergy + 16),
-              score: prev.score + (enemy.archetype === 'div_siah_boss' ? 350 : 100),
+              score: prev.score + (enemy.archetype === 'div_siah_boss' ? 400 : 100),
               enemiesVanquished: prev.enemiesVanquished + 1,
             }));
+
+            // If this was the 1v1 Good vs Evil Boss Duel and the Boss fell, advance to next Epoch!
+            if (isDuelBossFight && enemy.archetype === 'div_siah_boss') {
+              setTimeout(() => {
+                if (!isDisposed) callbacksRef.current.onEpochWaveCleared();
+              }, 900);
+            }
           } else {
             soundEngine.playBloodSplatterGore(false);
           }
@@ -1337,7 +1860,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       }
     };
 
-    // Perform Sang-e Sadeh Flint Parry & Brazier Ignition [Key Q]
+    // Perform Sang-e Sadeh Flint Parry [Key Q]
     const triggerSadehFlint = () => {
       if (flintCooldown > 0) return;
       flintCooldown = 1.1;
@@ -1386,6 +1909,11 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
             enemy.state = 'ko';
             spawnDismemberedGibs(enemy, dx / d, dz / d);
             killsInEpoch++;
+            if (isDuelBossFight && enemy.archetype === 'div_siah_boss') {
+              setTimeout(() => {
+                if (!isDisposed) callbacksRef.current.onEpochWaveCleared();
+              }, 900);
+            }
           }
         }
       });
@@ -1426,6 +1954,12 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       target.state = 'ko';
       killsInEpoch++;
       cameraShake = 0.65 * settingsRef.current.cameraShakeIntensity;
+
+      if (isDuelBossFight && target.archetype === 'div_siah_boss') {
+        setTimeout(() => {
+          if (!isDisposed) callbacksRef.current.onEpochWaveCleared();
+        }, 900);
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1494,9 +2028,14 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       );
     };
 
+    const handleEnterDuelBossFightEvent = () => {
+      enterOneOnOneBossDuel();
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('shahnameh-trigger-gore-burst', handleGoreBurstEvent);
+    window.addEventListener('shahnameh-enter-duel-boss-fight', handleEnterDuelBossFightEvent);
 
     if (!isSoftwareGl) {
       renderer.compile(scene, camera);
@@ -1537,6 +2076,9 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       if (currentEpochTracked !== runStateRef.current.epochIndex) {
         currentEpochTracked = runStateRef.current.epochIndex;
         resetWaveForEpoch();
+      } else if (currentAlignmentTracked !== runStateRef.current.alignment) {
+        currentAlignmentTracked = runStateRef.current.alignment;
+        rebuildHeroMeshForEpoch();
       }
 
       const isPlayingOrAttract =
@@ -1583,8 +2125,10 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
           if (moveLen > 0.01) {
             mx /= moveLen;
             mz /= moveLen;
-            playerX = Math.max(-14.5, Math.min(14.5, playerX + mx * speed * dt));
-            playerZ = Math.max(-9.5, Math.min(9.5, playerZ + mz * speed * dt));
+            const maxX = isDuelBossFight ? 4.8 : 14.5;
+            const maxZ = isDuelBossFight ? 4.8 : 9.5;
+            playerX = Math.max(-maxX, Math.min(maxX, playerX + mx * speed * dt));
+            playerZ = Math.max(-maxZ, Math.min(maxZ, playerZ + mz * speed * dt));
             facingAngle = Math.atan2(mx, mz);
             playerWalkCycle += dt * (dashTimer > 0 ? 22 : 12);
           } else {
@@ -1618,27 +2162,34 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
               : strideSwing * 0.3;
           heroModel.haloMesh.rotation.z = elapsed * 0.8;
 
-          // Spawn reinforcement wave or Boss
           const activeEnemies = enemies.filter((e) => e.state !== 'ko');
-          if (
-            activeEnemies.length < 4 &&
-            (killsInEpoch < targetKillsPerEpoch || gameStateRef.current === 'title')
-          ) {
-            const types: EnemyArchetype[] = ['gurg_swarmer', 'poulad_charger', 'jadu_kiter'];
-            const pick = types[(killsInEpoch + activeEnemies.length) % types.length];
-            const side = (killsInEpoch + activeEnemies.length) % 2 === 0 ? 4.2 : -4.2;
-            spawnEnemy3D(pick, side, (Math.random() - 0.5) * 3.8);
-          } else if (!bossSpawned && killsInEpoch >= 2) {
-            bossSpawned = true;
-            spawnEnemy3D('div_siah_boss', 3.6, -0.5);
-          }
 
-          if (
-            gameStateRef.current === 'playing' &&
-            killsInEpoch >= targetKillsPerEpoch &&
-            activeEnemies.length === 0
-          ) {
-            callbacksRef.current.onEpochWaveCleared();
+          // STAGE END -> OPEN GOOD VS EVIL CROSSROADS -> LAUNCH 1v1 TWO-PERSON BOSS DUEL!
+          if (!isDuelBossFight) {
+            if (
+              gameStateRef.current === 'playing' &&
+              killsInEpoch >= vanguardKillsBeforeBossCrossroads &&
+              !crossroadsPromptedForEpoch
+            ) {
+              crossroadsPromptedForEpoch = true;
+              if (callbacksRef.current.onRequestGoodEvilCrossroads) {
+                callbacksRef.current.onRequestGoodEvilCrossroads();
+              } else {
+                enterOneOnOneBossDuel();
+              }
+            } else if (
+              activeEnemies.length < 3 &&
+              (killsInEpoch < vanguardKillsBeforeBossCrossroads || gameStateRef.current === 'title')
+            ) {
+              const types: EnemyArchetype[] = ['gurg_swarmer', 'poulad_charger', 'jadu_kiter'];
+              const pick = types[(killsInEpoch + activeEnemies.length) % types.length];
+              const side = (killsInEpoch + activeEnemies.length) % 2 === 0 ? 4.0 : -4.0;
+              spawnEnemy3D(pick, side, (Math.random() - 0.5) * 3.4);
+            }
+          } else {
+            // Pulse the 1v1 Duel Ring of Destiny flat on the floor
+            duelRingMesh.rotation.y = elapsed * 0.5;
+            duelRingMat.opacity = 0.72 + Math.sin(elapsed * 5) * 0.18;
           }
 
           // Update Articulated Enemies
@@ -1734,8 +2285,9 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
               );
               const stepX = (policy.vx / UNIT_SCALE_2D) * dt;
               const stepZ = (policy.vy / UNIT_SCALE_2D) * dt;
-              enemy.x = Math.max(-16.5, Math.min(16.5, enemy.x + stepX));
-              enemy.z = Math.max(-10.5, Math.min(10.5, enemy.z + stepZ));
+              const maxArenaR = isDuelBossFight ? 4.9 : 16.5;
+              enemy.x = Math.max(-maxArenaR, Math.min(maxArenaR, enemy.x + stepX));
+              enemy.z = Math.max(-maxArenaR, Math.min(maxArenaR, enemy.z + stepZ));
               isMoving = Math.hypot(stepX, stepZ) > 0.002;
               if (policy.shouldStartTelegraph) {
                 tokenAvailable = false;
@@ -1745,7 +2297,6 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
               }
             }
 
-            // Articulated Bipedal Walk Stride for Divs
             if (isMoving) {
               enemy.walkCycle += dt * 10;
               const legSwing = Math.sin(enemy.walkCycle) * 0.46;
@@ -1802,21 +2353,19 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         }
       }
 
-      // Update Directional Arterial Blood Droplets (Velocity-Stretched & Fast Gravity)
+      // Update Directional Arterial Blood Droplets
       for (let i = arterialDrops.length - 1; i >= 0; i--) {
         const drop = arterialDrops[i];
-        drop.vy -= 34 * dt; // Realistic gravity pull
+        drop.vy -= 34 * dt;
         drop.x += drop.vx * dt;
         drop.y += drop.vy * dt;
         drop.z += drop.vz * dt;
         drop.life -= dt;
 
-        // Orient elongated droplet along its velocity vector
         drop.mesh.position.set(drop.x, drop.y, drop.z);
         _lookTarget.set(drop.x + drop.vx, drop.y + drop.vy, drop.z + drop.vz);
         drop.mesh.lookAt(_lookTarget);
 
-        // Hit floor -> spawn small satellite splatter and remove droplet immediately
         if (drop.y <= 0.03 || drop.life <= 0) {
           if (drop.y <= 0.03 && Math.random() < 0.14) {
             spawnBloodPool(
@@ -1832,7 +2381,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         }
       }
 
-      // Update Severed Demon Heads & Limbs (Dismemberment Gibs)
+      // Update Severed Gibs
       for (let i = severedGibs.length - 1; i >= 0; i--) {
         const gib = severedGibs[i];
         gib.vy -= 26 * dt;
@@ -1878,14 +2427,17 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         }
       });
 
-      // Smooth Exponential Camera Damping + Combat Shake
+      // Camera: Zoom in closer during 1v1 Good vs Evil Boss Duel for high-detail character showcase!
       if (cameraShake > 0) cameraShake = Math.max(0, cameraShake - dt * 2.6);
       const shakeX = (Math.random() - 0.5) * cameraShake;
       const shakeZ = (Math.random() - 0.5) * cameraShake;
 
-      camera.position.x = THREE.MathUtils.damp(camera.position.x, playerX * 0.35 + shakeX, 5, dt);
-      camera.position.z = THREE.MathUtils.damp(camera.position.z, 13.2 + playerZ * 0.25 + shakeZ, 5, dt);
-      camera.lookAt(playerX * 0.25, 1.0, playerZ * 0.2);
+      const targetCamY = isDuelBossFight ? 7.8 : 10.8;
+      const targetCamZ = isDuelBossFight ? 8.8 + playerZ * 0.2 : 12.2 + playerZ * 0.25;
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, playerX * 0.3 + shakeX, 5, dt);
+      camera.position.y = THREE.MathUtils.damp(camera.position.y, targetCamY, 4, dt);
+      camera.position.z = THREE.MathUtils.damp(camera.position.z, targetCamZ + shakeZ, 5, dt);
+      camera.lookAt(playerX * 0.2, 1.15, playerZ * 0.15);
 
       // Sync Telemetry to HUD
       const activeEnemies = enemies.filter((e) => e.state !== 'ko');
@@ -1895,15 +2447,19 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
         maxHp: runStateRef.current.maxHp,
         trailingHp: runStateRef.current.hp,
         mythicEnergy: runStateRef.current.mythicEnergy,
-        waveProgress: Math.min(100, Math.round((killsInEpoch / targetKillsPerEpoch) * 100)),
+        waveProgress: isDuelBossFight
+          ? 100
+          : Math.min(100, Math.round((killsInEpoch / vanguardKillsBeforeBossCrossroads) * 100)),
         bossActive: !!boss,
-        bossName: boss ? boss.name : '',
+        bossName: boss ? boss.name : getEpochBossTitle(runStateRef.current.epochIndex),
         bossHp: boss ? boss.hp : 0,
         bossMaxHp: boss ? boss.maxHp : 100,
         activeEnemyCount: activeEnemies.length,
         boundEnemiesCount: activeEnemies.filter((e) => e.state === 'bound').length,
         braziersLit: braziers3D.filter((b) => b.ignited).length,
         flintReady: flintCooldown <= 0,
+        isDuelBossFight,
+        heroTitle: getEpochHeroTitle(runStateRef.current.epochIndex),
       });
 
       renderer.render(scene, camera);
@@ -1930,6 +2486,7 @@ export const ThreeGoreArena: React.FC<ThreeGoreArenaProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('shahnameh-trigger-gore-burst', handleGoreBurstEvent);
+      window.removeEventListener('shahnameh-enter-duel-boss-fight', handleEnterDuelBossFightEvent);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
     };

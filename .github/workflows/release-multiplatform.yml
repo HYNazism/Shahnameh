@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Release Version Tag (e.g. v1.1.0 or v2.0.0)'
+        description: 'Release Version Tag (e.g. v5.0.1 or v6.0.0)'
         required: true
-        default: 'v1.1.0'
+        default: 'v5.0.1'
 
 permissions:
   contents: write
@@ -29,10 +29,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Run Deterministic Game Rules Unit Tests
         run: npx tsx --test src/game/rules.test.ts
@@ -81,7 +81,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          
 
       - name: Download Compiled Web Bundle
         uses: actions/download-artifact@v4
@@ -90,7 +90,7 @@ jobs:
           path: .
 
       - name: Install Electron & Electron-Builder
-        run: npm install --no-save electron@^33.2.0 electron-builder@^25.1.8
+        run: npm install --legacy-peer-deps --no-save electron@^33.2.0 electron-builder@^25.1.8
 
       - name: Package Native Desktop Executable (${{ matrix.platform_flag }})
         env:
@@ -123,7 +123,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          
 
       - name: Setup Java JDK 21 for Android Gradle
         uses: actions/setup-java@v4
@@ -132,7 +132,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Download Compiled Web Bundle
         uses: actions/download-artifact@v4
@@ -142,7 +142,7 @@ jobs:
 
       - name: Initialize Capacitor Android Project & Sync Web Assets
         run: |
-          npm install --no-save @capacitor/core@^6.1.2 @capacitor/cli@^6.1.2 @capacitor/android@^6.1.2
+          npm install --legacy-peer-deps --no-save @capacitor/core@^6.1.2 @capacitor/cli@^6.1.2 @capacitor/android@^6.1.2
           npx cap add android
           npx cap sync android
 

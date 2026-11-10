@@ -208,11 +208,12 @@ jobs:
             - **Standalone Offline Web / PWA (`.zip`)**:
               - `Shahnameh-CrownOfAshes-Web-PWA-Offline.zip`
           files: |
-            release-artifacts/windows-exe-builds/release-builds/desktop/*.exe
+            release-artifacts/windows-exe-builds/*.exe
             release-artifacts/android-apk-build/*.apk
-            release-artifacts/linux-appimage-builds/release-builds/desktop/*.AppImage
-            release-artifacts/linux-appimage-builds/release-builds/desktop/*.deb
-            release-artifacts/macos-dmg-builds/release-builds/desktop/*.dmg
+            release-artifacts/linux-appimage-builds/*.AppImage
+            release-artifacts/linux-appimage-builds/*.deb
+            release-artifacts/macos-dmg-builds/*.dmg
             release-artifacts/web-pwa-bundle/Shahnameh-CrownOfAshes-Web-PWA-Offline.zip
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false

@@ -148,7 +148,7 @@ jobs:
 
       - name: Configure Landscape Fullscreen in AndroidManifest.xml
         run: |
-          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:screenOrientation="sensorLandscape" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"/g' android/app/src/main/AndroidManifest.xml
+          python3 -c 'import xml.etree.ElementTree as ET; from pathlib import Path; p=Path("android/app/src/main/AndroidManifest.xml"); ns="{http://schemas.android.com/apk/res/android}"; tree=ET.parse(p); activity=next((x for x in tree.getroot().iter("activity") if x.get(ns+"name")==".MainActivity"), None); assert activity is not None, "Capacitor MainActivity entry not found"; activity.set(ns+"screenOrientation", "sensorLandscape"); activity.set(ns+"configChanges", "orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"); ET.register_namespace("android", ns.strip("{}")); tree.write(p, encoding="utf-8", xml_declaration=True); ET.parse(p)'
 
       - name: Build Installable Android APK via Gradle
         working-directory: ./android

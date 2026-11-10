@@ -1,17 +1,21 @@
-# Shahnameh: Crown of Ashes & Light
 
-یک بازی اکشن دوبعدی/سه‌بعدی الهام‌گرفته از شاهنامهٔ فردوسی. مخزن از React 19، TypeScript، Vite و Three.js استفاده می‌کند.
 
-## دریافت نسخه‌ها
+---
 
-- [GitHub Releases](https://github.com/HYNazism/Shahnameh/releases)
-- [گردش‌کار ساخت و انتشار](https://github.com/HYNazism/Shahnameh/actions/workflows/release-multiplatform.yml)
+## فارسی
 
-هنگامی که انتشار کامل شود، گردش‌کار برای ساخت و پیوست این خروجی‌ها پیکربندی شده است: نصاب و نسخهٔ قابل‌حمل ویندوز (`.exe`)، فایل نصب اندروید (`.apk`)، بستهٔ macOS (`.dmg`)، بسته‌های Linux (`.AppImage` و `.deb`) و باندل وب آفلاین (`.zip`). فایل ZIP وب، نصاب ویندوز یا اندروید نیست. پیش از نصب، فهرست دارایی‌های همان انتشار را بررسی کنید؛ این مخزن هنوز اجرای موفق انتشار چندسکویی را تأیید نکرده است.
+«شاهنامه: تاج خاکستر و نور» یک بازی اکشن دوبعدی/سه‌بعدی الهام‌گرفته از شاهنامهٔ فردوسی است. فناوری‌های اصلی مخزن React 19، TypeScript، Vite و Three.js هستند.
 
-## توسعهٔ محلی
+### دریافت نسخه‌ها
 
-پیش‌نیازها: Node.js 22، npm؛ برای ساخت Android نیز Java 21 و Android SDK لازم است.
+- [انتشارهای GitHub](https://github.com/HYNazism/Shahnameh/releases)
+- [گردش‌کار ساخت و انتشار چندسکویی](https://github.com/HYNazism/Shahnameh/actions/workflows/release-multiplatform.yml)
+
+پس از موفقیت اجرای گردش‌کار، فایل‌های زیر برای انتشار پیکربندی شده‌اند: نصاب و نسخهٔ قابل‌حمل ویندوز (`.exe`)، فایل نصب اندروید (`.apk`)، بستهٔ macOS (`.dmg`)، بسته‌های Linux (`.AppImage` و `.deb`) و باندل وب آفلاین (`.zip`). ZIP وب جایگزین نصاب ویندوز یا Android نیست. پیش از نصب، دارایی‌های پیوست‌شده به همان نسخه را بررسی کنید.
+
+### اجرای محلی
+
+پیش‌نیازها: Node.js 22 و npm؛ برای ساخت Android، Java 21 و Android SDK نیز لازم است.
 
 ```bash
 git clone https://github.com/HYNazism/Shahnameh.git
@@ -20,7 +24,7 @@ npm install --legacy-peer-deps
 npm run dev
 ```
 
-دستورات اصلی موجود در `package.json`:
+برای بررسی TypeScript، اجرای آزمون قواعد بازی و ساخت نسخهٔ وب:
 
 ```bash
 npm run lint
@@ -28,8 +32,8 @@ npm test
 npm run build
 ```
 
-`npm run lint` بررسی TypeScript، `npm test` آزمون قواعد بازی و `npm run build` ساخت وب را اجرا می‌کند. ساخت‌های دسکتاپ و Android در GitHub Actions تعریف شده‌اند.
+ساخت‌های دسکتاپ و Android در GitHub Actions تعریف شده‌اند.
 
-## انتشار
+### انتشار
 
-گردش‌کار با تگ‌های نسخهٔ `v*.*.*` یا اجرای دستی از تب **Actions** آغاز می‌شود. در اجرای دستی، نسخهٔ پیش‌فرض بعد از `5.0.0` برابر `v5.0.1` است. اجرای گردش‌کار، به‌تنهایی تضمین انتشار موفق نیست؛ وضعیت jobها و دارایی‌های Release را پس از هر اجرا بررسی کنید.
+گردش‌کار با تگ نسخهٔ `v*.*.*` یا اجرای دستی از تب **Actions** آغاز می‌شود. نسخهٔ پیش‌فرض اجرای دستی `v5.0.1` است که پس از نسخهٔ `5.0.0` در `package.json` قرار می‌گیرد. آغاز گردش‌کار تضمین موفقیت انتشار نیست؛ وضعیت jobها و فایل‌های Release را پس از اجرا بررسی کنید.

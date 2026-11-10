@@ -1,3 +1,11 @@
+## Latest release / آخرین انتشار
+
+`v5.0.1` is published. [Download the release assets](https://github.com/HYNazism/Shahnameh/releases/tag/v5.0.1): Windows installer and portable `.exe`, Android `.apk`, macOS `.dmg`, Linux `.AppImage` and `.deb`, and offline web `.zip`. The web ZIP is not an installer. [Successful workflow run](https://github.com/HYNazism/Shahnameh/actions/runs/42742550006).
+
+نسخهٔ `v5.0.1` منتشر شده است. [دانلود فایل‌های انتشار](https://github.com/HYNazism/Shahnameh/releases/tag/v5.0.1): نصاب و نسخهٔ قابل‌حمل ویندوز (`.exe`)، فایل نصب اندروید (`.apk`)، بستهٔ macOS (`.dmg`)، بسته‌های Linux (`.AppImage` و `.deb`) و باندل آفلاین وب (`.zip`). ZIP وب نصاب نیست. [اجرای موفق گردشکار](https://github.com/HYNazism/Shahnameh/actions/runs/42742550006).
+
+---
+
 ## English
 
 Shahnameh: Crown of Ash and Light is a 2D/3D action game inspired by Ferdowsi’s Shahnameh. The project uses React 19, TypeScript, Vite, and Three.js.

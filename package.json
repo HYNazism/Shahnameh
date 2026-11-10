@@ -1,7 +1,7 @@
 {
   "name": "shahnameh-crown-of-ashes",
   "private": true,
-  "version": "5.0.0",
+  "version": "5.0.1",   "author": {     "name": "HYNazism",     "email": "132603489+HYNazism@users.noreply.github.com"   },
   "description": "Ferdowsi's Shahnameh: Crown of Ashes & Light — Mature 3D & 2D Persian Action-RPG (Complete 12-Epoch Release)",
   "main": "electron/main.cjs",
   "type": "module",

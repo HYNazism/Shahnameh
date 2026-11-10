@@ -1,3 +1,39 @@
+## English
+
+Shahnameh: Crown of Ash and Light is a 2D/3D action game inspired by Ferdowsi’s Shahnameh. The project uses React 19, TypeScript, Vite, and Three.js.
+
+### Downloads
+
+- [GitHub Releases](https://github.com/HYNazism/Shahnameh/releases)
+- [Multi-platform release workflow](https://github.com/HYNazism/Shahnameh/actions/workflows/release-multiplatform.yml)
+
+After a successful workflow run, configured assets include a Windows installer and portable `.exe`, an Android `.apk`, a macOS `.dmg`, Linux `.AppImage` and `.deb` packages, and an offline web bundle (`.zip`). The web ZIP is not a Windows or Android installer. Check the assets attached to the specific release before downloading.
+
+### Local development
+
+Requirements: Node.js 22 and npm. Android builds also require Java 21 and the Android SDK.
+
+```bash
+git clone https://github.com/HYNazism/Shahnameh.git
+cd Shahnameh
+npm install --legacy-peer-deps
+npm run dev
+```
+
+Check TypeScript, run the game-rules tests, and build the web app with:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+Desktop and Android builds are defined in GitHub Actions.
+
+### Releases
+
+The workflow starts on a `v*.*.*` tag or a manual dispatch from **Actions**. The current package version and manual default are both `v5.0.1`. Starting a run does not guarantee a release; verify all jobs and the assets on the resulting GitHub Release.
+
 
 
 ---
